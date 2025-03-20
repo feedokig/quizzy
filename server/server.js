@@ -5,6 +5,7 @@ const cors = require('cors');
 const http = require('http');
 const socketIo = require('socket.io');
 const path = require('path');
+const bodyParser = require('body-parser');
 require('dotenv').config();
 
 // Импорт маршрутов
@@ -24,14 +25,18 @@ const io = socketIo(server, {
 });
 
 // Middleware
-app.use(cors());
+app.use(cors({
+  origin: process.env.CLIENT_URL || 'http://localhost:3000',
+  methods: ['GET', 'POST'],
+  credentials: true
+}));
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 
-// Настройка маршрутов
-app.use('/api/auth', authRoutes);
-app.use('/api/quiz', quizRoutes);
-app.use('/api/game', gameRoutes);
+// Routes
+app.use('/api/auth', authRoutes);  // Register auth routes
+app.use('/api/quiz', quizRoutes);  // Register quiz routes
+app.use('/api/game', gameRoutes);  // Register game routes
 
 // Обработка сокетов
 require('./socket/socket')(io);
