@@ -1,202 +1,233 @@
 // client/src/contexts/GameContext.js
-import React, { createContext, useContext, useState, useEffect } from 'react';
-import axios from 'axios';
-import { useSocket } from './SocketContext';
+import React, { createContext, useContext, useState } from 'react';
+import io from 'socket.io-client';
 
 const GameContext = createContext();
 
-export const useGame = () => useContext(GameContext);
+export function useGame() {
+  return useContext(GameContext);
+}
 
-export const GameProvider = ({ children }) => {
-  const [game, setGame] = useState(null);
-  const [players, setPlayers] = useState([]);
-  const [currentQuestion, setCurrentQuestion] = useState(null);
-  const [questionNumber, setQuestionNumber] = useState(0);
-  const [totalQuestions, setTotalQuestions] = useState(0);
-  const [timeLeft, setTimeLeft] = useState(0);
-  const [gamePhase, setGamePhase] = useState('waiting'); // waiting, starting, question, results, over
-  const [results, setResults] = useState([]);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(null);
-  const [timer, setTimer] = useState(null);
-  const { socket } = useSocket();
+export function GameProvider({ children }) {
+  const [socket, setSocket] = useState(null);
+  const [gameState, setGameState] = useState({
+    gameId: null,
+    pin: null,
+    isHost: false,
+    isPlayer: false,
+    playerId: null,
+    playerName: null,
+    players: [],
+    currentQuestion: null,
+    questionNumber: 0,
+    totalQuestions: 0,
+    timeLimit: 0,
+    timeLeft: 0,
+    answered: false,
+    selectedAnswer: null,
+    results: []
+  });
 
-  // Очистка таймера при размонтировании
-  useEffect(() => {
-    return () => {
-      if (timer) clearInterval(timer);
-    };
-  }, [timer]);
+  // Initialize socket connection
+  const initSocket = () => {
+    const newSocket = io(process.env.REACT_APP_API_URL || '');
+    setSocket(newSocket);
+    return newSocket;
+  };
 
-  // Обработка событий socket.io
-  useEffect(() => {
-    if (!socket) return;
-
-    // Игра создана
-    socket.on('game-created', (data) => {
-      console.log('Game created:', data);
-    });
-
-    // Присоединение игрока
-    socket.on('player-joined', (data) => {
-      setPlayers(data.players);
-    });
-
-    // Игрок покинул игру
-    socket.on('player-left', (data) => {
-      setPlayers(data.players);
-    });
-
-    // Игра начата
-    socket.on('game-started', (data) => {
-      setGamePhase('starting');
-      setQuestionNumber(data.currentQuestion);
-      setTotalQuestions(data.totalQuestions);
-    });
-
-    // Получение вопроса
-    socket.on('question', (data) => {
-      setCurrentQuestion(data.question);
-      setQuestionNumber(data.questionNumber);
-      setTotalQuestions(data.totalQuestions);
-      setTimeLeft(data.timeLimit);
-      setGamePhase('question');
-
-      // Запускаем таймер
-      if (timer) clearInterval(timer);
-      const countdownTimer = setInterval(() => {
-        setTimeLeft(prev => {
-          if (prev <= 1) {
-            clearInterval(countdownTimer);
-            return 0;
-          }
-          return prev - 1;
-        });
-      }, 1000);
-      setTimer(countdownTimer);
-    });
-
-    // Результат ответа
-    socket.on('answer-result', (data) => {
-      console.log('Answer result:', data);
-    });
-
-    // Игра окончена
-    socket.on('game-over', (data) => {
-      setGamePhase('over');
-      setResults(data.players);
-      if (timer) clearInterval(timer);
-    });
-
-    // Хост покинул игру
-    socket.on('host-left', () => {
-      setError('The host has left the game');
-      setGamePhase('over');
-      if (timer) clearInterval(timer);
-    });
-
-    // Ошибка игры
-    socket.on('game-error', (data) => {
-      setError(data.message);
-    });
-
-    // Ошибка присоединения
-    socket.on('join-error', (data) => {
-      setError(data.message);
-    });
-
-    // Очистка обработчиков при размонтировании
-    return () => {
-      socket.off('game-created');
-      socket.off('player-joined');
-      socket.off('player-left');
-      socket.off('game-started');
-      socket.off('question');
-      socket.off('answer-result');
-      socket.off('game-over');
-      socket.off('host-left');
-      socket.off('game-error');
-      socket.off('join-error');
-    };
-  }, [socket, timer]);
-
-  // Создание новой игры
-  const createGame = async (quizId) => {
-    setLoading(true);
-    try {
-      const res = await axios.post('/api/game', { quizId });
-      setGame(res.data);
-      setError(null);
-      return res.data;
-    } catch (err) {
-      setError(err.response?.data?.message || 'Failed to create game');
-      throw err;
-    } finally {
-      setLoading(false);
+  // Close socket connection
+  const closeSocket = () => {
+    if (socket) {
+      socket.disconnect();
+      setSocket(null);
     }
   };
 
-  // Присоединение к игре
-  const joinGame = async (pin, playerName) => {
-    setLoading(true);
-    try {
-      const res = await axios.post('/api/game/join', { pin, playerName });
-      setError(null);
-      return res.data;
-    } catch (err) {
-      setError(err.response?.data?.message || 'Failed to join game');
-      throw err;
-    } finally {
-      setLoading(false);
+  // Host a game
+  const hostGame = (gameId, hostId) => {
+    const newSocket = socket || initSocket();
+    
+    newSocket.emit('create-game', { gameId, hostId });
+    
+    newSocket.on('game-created', (data) => {
+      setGameState(prev => ({
+        ...prev,
+        gameId,
+        pin: data.pin,
+        isHost: true
+      }));
+    });
+    
+    // Listen for players joining
+    newSocket.on('player-joined', (data) => {
+      setGameState(prev => ({
+        ...prev,
+        players: data.players
+      }));
+    });
+    
+    // Listen for player leaving
+    newSocket.on('player-left', (data) => {
+      setGameState(prev => ({
+        ...prev,
+        players: data.players
+      }));
+    });
+    
+    // Listen for game error
+    newSocket.on('game-error', (error) => {
+      console.error('Game error:', error.message);
+    });
+  };
+
+  // Join a game as player
+  const joinGame = (pin, playerName) => {
+    const newSocket = socket || initSocket();
+    
+    newSocket.emit('join-game', { pin, playerName });
+    
+    newSocket.on('joined-game', (data) => {
+      setGameState(prev => ({
+        ...prev,
+        pin,
+        isPlayer: true,
+        playerId: data.playerId,
+        playerName: data.playerName
+      }));
+    });
+    
+    newSocket.on('join-error', (error) => {
+      console.error('Join error:', error.message);
+    });
+    
+    // Listen for game start
+    newSocket.on('game-started', (data) => {
+      setGameState(prev => ({
+        ...prev,
+        questionNumber: data.currentQuestion,
+        totalQuestions: data.totalQuestions
+      }));
+    });
+    
+    // Listen for questions
+    newSocket.on('question', (data) => {
+      setGameState(prev => ({
+        ...prev,
+        currentQuestion: data.question,
+        questionNumber: data.questionNumber,
+        totalQuestions: data.totalQuestions,
+        timeLimit: data.timeLimit,
+        timeLeft: data.timeLimit,
+        answered: false,
+        selectedAnswer: null
+      }));
+    });
+    
+    // Listen for answer results
+    newSocket.on('answer-result', (data) => {
+      setGameState(prev => ({
+        ...prev,
+        answered: true,
+        answerResult: {
+          correct: data.correct,
+          points: data.points,
+          correctAnswer: data.answer
+        }
+      }));
+    });
+    
+    // Listen for game over
+    newSocket.on('game-over', (data) => {
+      setGameState(prev => ({
+        ...prev,
+        isActive: false,
+        currentQuestion: null,
+        results: data.players
+      }));
+    });
+    
+    // Listen for host leaving
+    newSocket.on('host-left', () => {
+      setGameState(prev => ({
+        ...prev,
+        isActive: false,
+        currentQuestion: null,
+        gameEnded: true,
+        gameEndedReason: 'Host left the game'
+      }));
+    });
+  };
+
+  // Start the game (host only)
+  const startGame = () => {
+    if (socket && gameState.isHost) {
+      socket.emit('start-game', { pin: gameState.pin });
     }
   };
 
-  // Получение результатов игры
-  const getGameResults = async (gameId) => {
-    setLoading(true);
-    try {
-      const res = await axios.get(`/api/game/${gameId}/results`);
-      setResults(res.data.results);
-      setError(null);
-      return res.data;
-    } catch (err) {
-      setError(err.response?.data?.message || 'Failed to get game results');
-      throw err;
-    } finally {
-      setLoading(false);
+  // Submit answer (player only)
+  const submitAnswer = (answer, time) => {
+    if (socket && gameState.isPlayer) {
+      socket.emit('submit-answer', {
+        pin: gameState.pin,
+        playerId: gameState.playerId,
+        answer,
+        time
+      });
+      
+      setGameState(prev => ({
+        ...prev,
+        answered: true,
+        selectedAnswer: answer
+      }));
     }
   };
 
-  // Сброс состояния игры
+  // Move to next question (host only)
+  const nextQuestion = () => {
+    if (socket && gameState.isHost) {
+      socket.emit('next-question', { pin: gameState.pin });
+    }
+  };
+
+  // Reset game state
   const resetGame = () => {
-    setGame(null);
-    setPlayers([]);
-    setCurrentQuestion(null);
-    setQuestionNumber(0);
-    setTotalQuestions(0);
-    setTimeLeft(0);
-    setGamePhase('waiting');
-    setResults([]);
-    setError(null);
-    if (timer) clearInterval(timer);
+    closeSocket();
+    setGameState({
+      gameId: null,
+      pin: null,
+      isHost: false,
+      isPlayer: false,
+      playerId: null,
+      playerName: null,
+      players: [],
+      currentQuestion: null,
+      questionNumber: 0,
+      totalQuestions: 0,
+      timeLimit: 0,
+      timeLeft: 0,
+      answered: false,
+      selectedAnswer: null,
+      results: []
+    });
   };
 
   const value = {
-    game,
-    players,
-    currentQuestion,
-    questionNumber,
-    totalQuestions,
-    timeLeft,
-    gamePhase,
-    results,
-    loading,
-    error,
-    createGame,
+    socket,
+    gameState,
+    initSocket,
+    closeSocket,
+    hostGame,
     joinGame,
-    getGameResults,
+    startGame,
+    submitAnswer,
+    nextQuestion,
     resetGame
   };
 
-  return <GameContext.Provider value={value}>{children}</GameContext.Provider>;
-};
+  return (
+    <GameContext.Provider value={value}>
+      {children}
+    </GameContext.Provider>
+  );
+}

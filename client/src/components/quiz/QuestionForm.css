@@ -1,0 +1,62 @@
+/* // client/src/components/quiz/QuestionForm.css*/
+.question-form {
+  margin-bottom: 30px;
+}
+
+.question-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 15px;
+}
+
+.option-container {
+  display: flex;
+  align-items: center;
+  margin-bottom: 10px;
+}
+
+.option-input {
+  flex: 1;
+  display: flex;
+  align-items: center;
+}
+
+.option-input input[type="text"] {
+  flex: 1;
+  margin-bottom: 0;
+}
+
+.correct-option {
+    display: flex;
+    align-items: center;
+    margin-top: 10px;
+  }
+  
+  .correct-option input[type="radio"] {
+    margin-right: 8px;
+  }
+  
+  .option-container label {
+    font-size: 14px;
+    margin-left: 10px;
+  }
+  
+  .question-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 20px;
+  }
+  
+  .question-footer button {
+    background-color: #4CAF50;
+    color: white;
+    padding: 10px 20px;
+    border: none;
+    cursor: pointer;
+  }
+  
+  .question-footer button:hover {
+    background-color: #45a049;
+  }

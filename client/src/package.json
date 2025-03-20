@@ -1,12 +1,22 @@
 {
-  "name": "src",
-  "version": "1.0.0",
-  "main": "index.js",
-  "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
-  },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
-  "description": ""
-}
+    "name": "quizzy",
+    "version": "1.0.0",
+    "description": "Quizzy - a Kahoot clone using MERN stack",
+    "main": "index.js",
+    "scripts": {
+      "start": "node server/server.js",
+      "server": "npm run server --prefix server",
+      "client": "npm start --prefix client",
+      "dev": "concurrently \"npm run server\" \"npm run client\"",
+      "install-server": "npm install --prefix server",
+      "install-client": "npm install --prefix client",
+      "install-all": "npm install && npm run install-server && npm run install-client",
+      "build": "npm run build --prefix client",
+      "heroku-postbuild": "NPM_CONFIG_PRODUCTION=false npm run install-client && npm run build"
+    },
+    "author": "",
+    "license": "MIT",
+    "devDependencies": {
+      "concurrently": "^8.0.1"
+    }
+  }

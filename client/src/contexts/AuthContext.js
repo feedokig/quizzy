@@ -1,59 +1,49 @@
 // client/src/contexts/AuthContext.js
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import axios from 'axios';
+import api from '../services/api';
+import { setAuthToken, removeAuthToken } from '../services/authToken';
 
 const AuthContext = createContext();
 
-export const useAuth = () => useContext(AuthContext);
+export function useAuth() {
+  return useContext(AuthContext);
+}
 
-export const AuthProvider = ({ children }) => {
+export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [loading, setLoading] = useState(true);
-  const [token, setToken] = useState(localStorage.getItem('token'));
   const [error, setError] = useState(null);
 
-  // Установка авторизационного токена в заголовки запросов
-  if (token) {
-    axios.defaults.headers.common['x-auth-token'] = token;
-  } else {
-    delete axios.defaults.headers.common['x-auth-token'];
-  }
-
-  // Загрузка пользователя при инициализации
+  // Load user on initial render if token exists
   useEffect(() => {
     const loadUser = async () => {
-      if (!token) {
-        setLoading(false);
-        return;
+      if (localStorage.token) {
+        setAuthToken(localStorage.token);
+        try {
+          const res = await api.get('/api/auth/me');
+          setUser(res.data);
+          setIsAuthenticated(true);
+        } catch (err) {
+          removeAuthToken();
+          setUser(null);
+          setIsAuthenticated(false);
+        }
       }
-
-      try {
-        const res = await axios.get('/api/auth/me');
-        setUser(res.data);
-      } catch (err) {
-        localStorage.removeItem('token');
-        setToken(null);
-        setError('Session expired. Please login again.');
-      } finally {
-        setLoading(false);
-      }
+      setLoading(false);
     };
 
     loadUser();
-  }, [token]);
+  }, []);
 
-  // Регистрация пользователя
-  const register = async (username, email, password) => {
+  // Register user
+  const register = async (userData) => {
     try {
-      const res = await axios.post('/api/auth/register', {
-        username,
-        email,
-        password
-      });
-
+      const res = await api.post('/api/auth/register', userData);
       localStorage.setItem('token', res.data.token);
-      setToken(res.data.token);
+      setAuthToken(res.data.token);
       setUser(res.data.user);
+      setIsAuthenticated(true);
       setError(null);
       return res.data;
     } catch (err) {
@@ -62,45 +52,43 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  // Авторизация пользователя
-  const login = async (email, password) => {
+  // Login user
+  const login = async (userData) => {
     try {
-      const res = await axios.post('/api/auth/login', {
-        email,
-        password
-      });
-
+      const res = await api.post('/api/auth/login', userData);
       localStorage.setItem('token', res.data.token);
-      setToken(res.data.token);
+      setAuthToken(res.data.token);
       setUser(res.data.user);
+      setIsAuthenticated(true);
       setError(null);
       return res.data;
     } catch (err) {
-      setError(err.response?.data?.message || 'Authentication failed');
+      setError(err.response?.data?.message || 'Login failed');
       throw err;
     }
   };
 
-  // Выход пользователя
+  // Logout user
   const logout = () => {
     localStorage.removeItem('token');
-    setToken(null);
+    removeAuthToken();
     setUser(null);
-    setError(null);
+    setIsAuthenticated(false);
   };
-
-  // Проверка авторизации
-  const isAuthenticated = !!user;
 
   const value = {
     user,
+    isAuthenticated,
     loading,
     error,
     register,
     login,
-    logout,
-    isAuthenticated
+    logout
   };
 
-  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
-};
+  return (
+    <AuthContext.Provider value={value}>
+      {children}
+    </AuthContext.Provider>
+  );
+}
