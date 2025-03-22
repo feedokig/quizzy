@@ -1,7 +1,6 @@
-// pages/game/JoinGame
-
 import React, { useState } from 'react';
 import axios from 'axios';
+import './JoinGame.css';
 
 const JoinGame = () => {
   const [pin, setPin] = useState('');
@@ -18,16 +17,18 @@ const JoinGame = () => {
   };
 
   return (
-    <div>
-      <h1>Join a Game</h1>
-      <input
-        type="text"
-        placeholder="Enter Game PIN"
-        value={pin}
-        onChange={(e) => setPin(e.target.value)}
-      />
-      <button onClick={handleJoinGame}>Join</button>
-      {error && <p>{error}</p>}
+    <div className="join-game-container">
+      <div className="game-form">
+        <h1>Join a Game</h1>
+        <input
+          type="text"
+          placeholder="Enter Game PIN"
+          value={pin}
+          onChange={(e) => setPin(e.target.value)}
+        />
+        <button onClick={handleJoinGame}>Join</button>
+        {error && <p className="error">{error}</p>}
+      </div>
     </div>
   );
 };

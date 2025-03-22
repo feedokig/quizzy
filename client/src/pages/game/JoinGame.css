@@ -1,0 +1,55 @@
+/* JoinGame.css */
+.join-game-container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+    background: #f1f1f1;
+  }
+  
+  .game-form {
+    background-color: #ffffff;
+    padding: 40px;
+    border-radius: 10px;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    width: 100%;
+    max-width: 400px;
+    text-align: center;
+  }
+  
+  input {
+    width: 100%;
+    padding: 15px;
+    margin-bottom: 20px;
+    font-size: 18px;
+    border: 2px solid #7F00FF;
+    border-radius: 5px;
+    outline: none;
+    transition: border-color 0.3s ease;
+  }
+  
+  input:focus {
+    border-color: #E100FF;
+  }
+  
+  button {
+    width: 100%;
+    padding: 15px;
+    background-color: #7F00FF;
+    color: white;
+    font-size: 18px;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    transition: background-color 0.3s ease;
+  }
+  
+  button:hover {
+    background-color: #E100FF;
+  }
+  
+  .error {
+    color: red;
+    font-size: 14px;
+  }
+  

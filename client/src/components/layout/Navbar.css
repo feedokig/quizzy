@@ -1,6 +1,14 @@
 /* // client/src/components/layout/Navbar.css*/
+@keyframes gradient {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
 .navbar {
-  background-color: #6c5ce7;
+  background: linear-gradient(270deg, #4f009e, #9500ff);
+  background-size: 400% 400%;
+  animation: gradient 10s ease infinite;
   padding: 15px 0;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
 }
