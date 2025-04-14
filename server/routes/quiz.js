@@ -5,8 +5,7 @@ const quizController = require('../controllers/quizController');
 const auth = require('../middleware/auth');
 
 // @route   POST /api/quiz
-// @desc    Создание викторины
-// @access  Private
+// Create quiz route
 router.post('/', auth, quizController.createQuiz);
 
 // @route   GET /api/quiz/:id
@@ -15,8 +14,7 @@ router.post('/', auth, quizController.createQuiz);
 router.get('/:id', quizController.getQuiz);
 
 // @route   GET /api/quiz/user
-// @desc    Получение всех викторин пользователя
-// @access  Private
+// Get user quizzes route
 router.get('/user/quizzes', auth, quizController.getUserQuizzes);
 
 // @route   PUT /api/quiz/:id

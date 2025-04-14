@@ -4,24 +4,37 @@ const Quiz = require('../models/Quiz');
 // Создание викторины
 exports.createQuiz = async (req, res) => {
   try {
-    const { title, description, questions, timeLimit, isPublic } = req.body;
-    
-    // Создаем новую викторину
+    const { title, questions, boosts, nutritionBonus, wheelEnabled } = req.body;
+
+    // Validate required fields
+    if (!title || !questions || questions.length === 0) {
+      return res.status(400).json({ message: 'Title and questions are required' });
+    }
+
+    // Create new quiz
     const quiz = new Quiz({
       title,
-      description,
-      creator: req.user.id,
       questions,
-      timeLimit,
-      isPublic
+      boosts,
+      nutritionBonus,
+      wheelEnabled,
+      creator: req.user.id  // This comes from the auth middleware
     });
-    
+
     await quiz.save();
-    
-    res.status(201).json(quiz);
-  } catch (error) {
-    console.error('Create quiz error:', error);
-    res.status(500).json({ message: 'Server error' });
+
+    res.status(201).json({
+      success: true,
+      quiz,
+      message: 'Quiz created successfully'
+    });
+  } catch (err) {
+    console.error('Quiz creation error:', err);
+    res.status(500).json({
+      success: false,
+      message: 'Error creating quiz',
+      error: err.message
+    });
   }
 };
 
@@ -46,44 +59,42 @@ exports.getQuiz = async (req, res) => {
 exports.getUserQuizzes = async (req, res) => {
   try {
     const quizzes = await Quiz.find({ creator: req.user.id })
+      .select('title questions createdAt')
       .sort({ createdAt: -1 });
-    
+
     res.json(quizzes);
-  } catch (error) {
-    console.error('Get user quizzes error:', error);
-    res.status(500).json({ message: 'Server error' });
+  } catch (err) {
+    console.error('Error fetching user quizzes:', err);
+    res.status(500).json({
+      success: false,
+      message: 'Error fetching quizzes',
+      error: err.message
+    });
   }
 };
 
 // Обновление викторины
 exports.updateQuiz = async (req, res) => {
   try {
-    const { title, description, questions, timeLimit, isPublic } = req.body;
-    
     const quiz = await Quiz.findById(req.params.id);
     
     if (!quiz) {
       return res.status(404).json({ message: 'Quiz not found' });
     }
-    
-    // Проверяем, что пользователь является создателем викторины
+
     if (quiz.creator.toString() !== req.user.id) {
-      return res.status(403).json({ message: 'Unauthorized' });
+      return res.status(401).json({ message: 'Not authorized' });
     }
-    
-    // Обновляем викторину
-    quiz.title = title || quiz.title;
-    quiz.description = description || quiz.description;
-    quiz.questions = questions || quiz.questions;
-    quiz.timeLimit = timeLimit || quiz.timeLimit;
-    quiz.isPublic = isPublic !== undefined ? isPublic : quiz.isPublic;
-    
-    await quiz.save();
-    
-    res.json(quiz);
-  } catch (error) {
-    console.error('Update quiz error:', error);
-    res.status(500).json({ message: 'Server error' });
+
+    const updatedQuiz = await Quiz.findByIdAndUpdate(
+      req.params.id,
+      req.body,
+      { new: true }
+    );
+
+    res.json(updatedQuiz);
+  } catch (err) {
+    res.status(500).json({ message: 'Error updating quiz', error: err.message });
   }
 };
 

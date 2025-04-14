@@ -35,7 +35,7 @@ app.use(express.urlencoded({ extended: false }));
 
 // Routes
 app.use('/api/auth', authRoutes);  // Register auth routes
-app.use('/api/quiz', quizRoutes);  // Register quiz routes
+app.use('/api/quiz', require('./routes/quiz'));
 app.use('/api/game', gameRoutes);  // Register game routes
 
 // Обработка сокетов

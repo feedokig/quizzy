@@ -1,191 +1,277 @@
 // client/src/pages/quiz/CreateQuiz.js
 import React, { useState } from 'react';
-import { Formik, Form, Field, ErrorMessage } from 'formik';
-import * as Yup from 'yup';
 import { useNavigate } from 'react-router-dom';
-import { createQuiz } from '../../services/quizService';
-import QuestionForm from '../../components/quiz/QuestionForm';
 import Alert from '../../components/ui/Alert';
+import './CreateQuiz.css';
 import './QuizForm.css';
-
-const quizSchema = Yup.object().shape({
-  title: Yup.string()
-    .min(3, 'Title must be at least 3 characters')
-    .max(100, 'Title must be less than 100 characters')
-    .required('Title is required'),
-  description: Yup.string()
-    .max(500, 'Description must be less than 500 characters'),
-  timeLimit: Yup.number()
-    .min(5, 'Time limit must be at least 5 seconds')
-    .max(300, 'Time limit must be less than 300 seconds')
-    .required('Time limit is required'),
-  isPublic: Yup.boolean()
-});
+import axios from 'axios';
 
 const CreateQuiz = () => {
-  const [questions, setQuestions] = useState([
-    {
-      text: '',
-      options: ['', ''],
-      correctAnswer: 0,
-      points: 1000
-    }
-  ]);
-  const [error, setError] = useState(null);
   const navigate = useNavigate();
+  const [alert, setAlert] = useState({ show: false, message: '', type: '' });
+  const [quizData, setQuizData] = useState({
+    title: '',
+    questions: [],
+    boosts: {
+      fifty_fifty: true,
+      double_points: true,
+      time_freeze: true,
+      nutrition_bonus: true
+    },
+    nutritionBonus: {
+      enabled: true,
+      correctTypes: 0
+    },
+    wheelEnabled: true
+  });
 
-  const handleSaveQuestion = (questionData, index) => {
-    const newQuestions = [...questions];
-    newQuestions[index] = questionData;
-    setQuestions(newQuestions);
-  };
+  const [currentQuestion, setCurrentQuestion] = useState({
+    question: '',
+    options: ['', '', '', ''],
+    correctAnswer: null
+  });
 
-  const handleAddQuestion = () => {
-    setQuestions([
-      ...questions,
-      {
-        text: '',
-        options: ['', ''],
-        correctAnswer: 0,
-        points: 1000
-      }
-    ]);
-  };
-
-  const handleDeleteQuestion = (index) => {
-    if (questions.length > 1) {
-      const newQuestions = [...questions];
-      newQuestions.splice(index, 1);
-      setQuestions(newQuestions);
+  const addQuestion = (e) => {
+    e.preventDefault();
+    if (!currentQuestion.question || !currentQuestion.correctAnswer || 
+        currentQuestion.options.some(opt => !opt)) {
+      setAlert({
+        show: true,
+        message: 'Please fill all fields and select correct answer',
+        type: 'error'
+      });
+      return;
     }
+
+    setQuizData(prev => ({
+      ...prev,
+      questions: [...prev.questions, currentQuestion]
+    }));
+
+    setCurrentQuestion({
+      question: '',
+      options: ['', '', '', ''],
+      correctAnswer: null
+    });
   };
 
-  const handleSubmit = async (values, { setSubmitting }) => {
+  const handleCorrectAnswerSelect = (index) => {
+    setCurrentQuestion(prev => ({
+      ...prev,
+      correctAnswer: index
+    }));
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    
+    if (!quizData.title || quizData.questions.length === 0) {
+      setAlert({
+        show: true,
+        message: 'Please add a title and at least one question',
+        type: 'error'
+      });
+      return;
+    }
+
     try {
-      if (questions.some(q => !q.text.trim())) {
-        setError('All questions must have text');
-        setSubmitting(false);
+      const token = localStorage.getItem('token');
+      if (!token) {
+        setAlert({
+          show: true,
+          message: 'You must be logged in to create a quiz',
+          type: 'error'
+        });
         return;
       }
 
-      const quizData = {
-        ...values,
-        questions
-      };
-
-      const response = await createQuiz(quizData);
-      navigate(`/quiz/${response._id}`);
-    } catch (err) {
-      setError(err.response?.data?.message || 'Failed to create quiz');
-      setSubmitting(false);
+      const response = await axios.post(
+        'http://localhost:5000/api/quiz',  // Update this URL to match your backend
+        quizData,
+        {
+          headers: {
+            'Content-Type': 'application/json',
+            'x-auth-token': token
+          }
+        }
+      );
+      
+      if (response.data) {
+        setAlert({
+          show: true,
+          message: 'Quiz created successfully!',
+          type: 'success'
+        });
+        
+        // Clear form data
+        setQuizData({
+          title: '',
+          questions: [],
+          boosts: {
+            fifty_fifty: true,
+            double_points: true,
+            time_freeze: true,
+            nutrition_bonus: true
+          },
+          nutritionBonus: {
+            enabled: true,
+            correctTypes: 0
+          },
+          wheelEnabled: true
+        });
+        
+        // Redirect to dashboard after 1.5 seconds
+        setTimeout(() => {
+          navigate('/dashboard');
+        }, 1500);
+      }
+    } catch (error) {
+      console.error('Error creating quiz:', error);
+      setAlert({
+        show: true,
+        message: error.response?.data?.message || 'Error creating quiz. Please try again.',
+        type: 'error'
+      });
     }
-  };
+};
 
   return (
     <div className="quiz-form-container">
-      <h1>Create a New Quiz</h1>
+      {alert.show && <Alert type={alert.type} message={alert.message} />}
       
-      {error && (
-        <Alert 
-          type="danger" 
-          message={error} 
-          onClose={() => setError(null)} 
+      <form onSubmit={handleSubmit}>
+        <input
+          type="text"
+          className="quiz-title-input"
+          placeholder="Quiz Title"
+          value={quizData.title}
+          onChange={(e) => setQuizData({ ...quizData, title: e.target.value })}
+          required
         />
-      )}
-      
-      <div className="quiz-form card">
-        <Formik
-          initialValues={{
-            title: '',
-            description: '',
-            timeLimit: 30,
-            isPublic: true
-          }}
-          validationSchema={quizSchema}
-          onSubmit={handleSubmit}
-        >
-          {({ isSubmitting }) => (
-            <Form>
-              <div className="form-group">
-                <label htmlFor="title">Quiz Title</label>
-                <Field 
-                  type="text" 
-                  name="title" 
-                  id="title" 
-                  placeholder="Enter quiz title" 
+        
+        <div className="question-form">
+          <input
+            type="text"
+            className="question-input"
+            placeholder="Question"
+            value={currentQuestion.question}
+            onChange={(e) => setCurrentQuestion({ 
+              ...currentQuestion, 
+              question: e.target.value 
+            })}
+          />
+          
+          <div className="options-container">
+            {currentQuestion.options.map((option, index) => (
+              <div key={index} className="option-row">
+                <input
+                  type="text"
+                  placeholder={`Option ${index + 1}`}
+                  value={option}
+                  onChange={(e) => {
+                    const newOptions = [...currentQuestion.options];
+                    newOptions[index] = e.target.value;
+                    setCurrentQuestion({ ...currentQuestion, options: newOptions });
+                  }}
                 />
-                <ErrorMessage name="title" component="div" className="error" />
-              </div>
-              
-              <div className="form-group">
-                <label htmlFor="description">Description (Optional)</label>
-                <Field 
-                  as="textarea" 
-                  name="description" 
-                  id="description" 
-                  placeholder="Enter quiz description" 
-                  rows="3"
-                />
-                <ErrorMessage name="description" component="div" className="error" />
-              </div>
-              
-              <div className="form-row">
-                <div className="form-group">
-                  <label htmlFor="timeLimit">Time Limit (seconds per question)</label>
-                  <Field 
-                    type="number" 
-                    name="timeLimit" 
-                    id="timeLimit" 
-                    min="5" 
-                    max="300" 
+                <label className="correct-answer-label">
+                  <input
+                    type="radio"
+                    name="correctAnswer"
+                    checked={currentQuestion.correctAnswer === index}
+                    onChange={() => handleCorrectAnswerSelect(index)}
                   />
-                  <ErrorMessage name="timeLimit" component="div" className="error" />
-                </div>
-                
-                <div className="form-group checkbox-group">
-                  <label>
-                    <Field type="checkbox" name="isPublic" />
-                    Make quiz public
-                  </label>
-                  <ErrorMessage name="isPublic" component="div" className="error" />
-                </div>
+                  Correct Answer
+                </label>
               </div>
-              
-              <hr className="divider" />
-              
-              <h2>Questions</h2>
-              
-              {questions.map((question, index) => (
-                <QuestionForm
-                  key={index}
-                  question={question}
-                  index={index}
-                  onSave={handleSaveQuestion}
-                  onDelete={questions.length > 1 ? handleDeleteQuestion : null}
-                />
-              ))}
-              
-              <div className="form-actions">
-                <button
-                  type="button"
-                  className="btn-secondary"
-                  onClick={handleAddQuestion}
-                >
-                  Add Question
-                </button>
-                
-                <button
-                  type="submit"
-                  className="btn-primary"
-                  disabled={isSubmitting}
-                >
-                  {isSubmitting ? 'Creating...' : 'Create Quiz'}
-                </button>
-              </div>
-            </Form>
-          )}
-        </Formik>
-      </div>
+            ))}
+          </div>
+
+          <button type="button" className="add-question-btn" onClick={addQuestion}>
+            Add Question
+          </button>
+        </div>
+
+        <div className="boosts-section">
+          <h3>Boosts</h3>
+          <div className="boost-options">
+            <label>
+              <input
+                type="checkbox"
+                checked={quizData.boosts.fifty_fifty}
+                onChange={(e) => setQuizData({
+                  ...quizData,
+                  boosts: { ...quizData.boosts, fifty_fifty: e.target.checked }
+                })}
+              />
+              🛡️ 50/50
+            </label>
+
+            <label>
+              <input
+                type="checkbox"
+                checked={quizData.boosts.double_points}
+                onChange={(e) => setQuizData({
+                  ...quizData,
+                  boosts: { ...quizData.boosts, double_points: e.target.checked }
+                })}
+              />
+              🔥 X2 Points
+            </label>
+
+            <label>
+              <input
+                type="checkbox"
+                checked={quizData.boosts.time_freeze}
+                onChange={(e) => setQuizData({
+                  ...quizData,
+                  boosts: { ...quizData.boosts, time_freeze: e.target.checked }
+                })}
+              />
+              ❄️ Time Freeze
+            </label>
+
+            <label>
+              <input
+                type="checkbox"
+                checked={quizData.nutritionBonus.enabled}
+                onChange={(e) => setQuizData({
+                  ...quizData,
+                  nutritionBonus: { ...quizData.nutritionBonus, enabled: e.target.checked }
+                })}
+              />
+              🐐 Nutrition Bonus
+            </label>
+          </div>
+        </div>
+
+        <div className="wheel-section">
+          <label>
+            <input
+              type="checkbox"
+              checked={quizData.wheelEnabled}
+              onChange={(e) => setQuizData({
+                ...quizData,
+                wheelEnabled: e.target.checked
+              })}
+            />
+            Enable Wheel of Fortune
+          </label>
+        </div>
+
+        <div className="questions-preview">
+          <h3>Added Questions ({quizData.questions.length})</h3>
+          {quizData.questions.map((q, idx) => (
+            <div key={idx} className="question-preview">
+              <p><strong>Q{idx + 1}:</strong> {q.question}</p>
+            </div>
+          ))}
+        </div>
+
+        <button type="submit" className="create-quiz-btn">
+          Create Quiz
+        </button>
+      </form>
     </div>
   );
 };

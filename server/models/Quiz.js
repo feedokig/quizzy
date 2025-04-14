@@ -1,56 +1,62 @@
 // server/models/Quiz.js
 const mongoose = require('mongoose');
 
-const QuestionSchema = new mongoose.Schema({
-  text: {
-    type: String,
-    required: true,
-    trim: true
-  },
-  image: {
-    type: String,
-    trim: true
-  },
-  options: [{
-    type: String,
-    required: true,
-    trim: true
-  }],
-  correctAnswer: {
-    type: Number,
-    required: true
-  },
-  points: {
-    type: Number,
-    default: 1000
-  }
-});
-
 const QuizSchema = new mongoose.Schema({
   title: {
     type: String,
     required: true,
     trim: true
   },
-  description: {
-    type: String,
-    trim: true
+  questions: [{
+    question: {
+      type: String,
+      required: true
+    },
+    options: [{
+      type: String,
+      required: true
+    }],
+    correctAnswer: {
+      type: Number,
+      required: true
+    }
+  }],
+  boosts: {
+    fifty_fifty: {
+      type: Boolean,
+      default: true
+    },
+    double_points: {
+      type: Boolean,
+      default: true
+    },
+    time_freeze: {
+      type: Boolean,
+      default: true
+    },
+    nutrition_bonus: {
+      type: Boolean,
+      default: true
+    }
+  },
+  nutritionBonus: {
+    enabled: {
+      type: Boolean,
+      default: true
+    },
+    correctTypes: {
+      type: Number,
+      default: 0
+    }
+  },
+  wheelEnabled: {
+    type: Boolean,
+    default: true
   },
   creator: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',
     required: true
-  },
-  questions: [QuestionSchema],
-  timeLimit: {
-    type: Number,
-    default: 30,
-    min: 5,
-    max: 120
-  },
-  isPublic: {
-    type: Boolean,
-    default: false
   },
   createdAt: {
     type: Date,
