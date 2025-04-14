@@ -2,6 +2,7 @@
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { getUserQuizzes, deleteQuiz } from '../../services/quizService';
+import { useNavigate } from 'react-router-dom';
 import { createGame } from '../../services/gameService';
 import { useAuth } from '../../contexts/AuthContext';
 import Spinner from '../../components/ui/Spinner';
@@ -14,6 +15,7 @@ const Dashboard = () => {
   const [error, setError] = useState(null);
   const [alert, setAlert] = useState(null);
   const { user } = useAuth();
+  const navigate = useNavigate();
 
   useEffect(() => {
     const fetchQuizzes = async () => {
@@ -46,9 +48,12 @@ const Dashboard = () => {
   const handleHostGame = async (quizId) => {
     try {
       const game = await createGame(quizId);
-      window.location.href = `/host/${game._id}`;
-    } catch (err) {
-      setAlert({ type: 'danger', message: 'Failed to create game' });
+      if (game && game.pin) {
+        navigate(`/host/${game._id}`);
+      }
+    } catch (error) {
+      console.error('Failed to host game:', error);
+      // Show error to user (using your preferred method - alert, toast, etc)
     }
   };
 

@@ -1,57 +1,54 @@
-// client/src/services/gameService.js
-import api from './api';
+import axios from 'axios';
 
-// Create a new game
+const API_URL = 'http://localhost:5000/api/games';
+
 export const createGame = async (quizId) => {
   try {
-    const res = await api.post('/api/game', { quizId });
-    return res.data;
-  } catch (err) {
-    throw err;
-  }
-};
+    // Get hostId from localStorage
+    const hostId = localStorage.getItem('userId');
+    
+    if (!hostId) {
+      throw new Error('User not authenticated. Please log in again.');
+    }
 
-// Join a game with PIN
-export const joinGameWithPin = async (pin, playerName) => {
-  try {
-    const res = await api.post('/api/game/join', { pin, playerName });
-    return res.data;
-  } catch (err) {
-    throw err;
-  }
-};
+    if (!quizId) {
+      throw new Error('Quiz ID is required');
+    }
 
-// Submit answer
-export const submitGameAnswer = async (gameId, playerId, questionIndex, answer) => {
-  try {
-    const res = await api.post('/api/game/answer', {
-      gameId,
-      playerId,
-      questionIndex,
-      answer
+    console.log('Creating game with:', { quizId, hostId }); // Debug log
+
+    const response = await axios.post(`${API_URL}/create`, {
+      quizId,
+      hostId
     });
-    return res.data;
-  } catch (err) {
-    throw err;
+    return response.data;
+  } catch (error) {
+    console.error('Game creation error:', error);
+    throw error.response?.data?.error || 'Failed to create game';
   }
 };
 
-// Get game results
-export const getGameResults = async (gameId) => {
+export const getGame = async (gameId) => {
   try {
-    const res = await api.get(`/api/game/${gameId}/results`);
-    return res.data;
-  } catch (err) {
-    throw err;
+    const response = await axios.get(`${API_URL}/${gameId}`);
+    return response.data;
+  } catch (error) {
+    throw error.response?.data?.error || 'Failed to get game';
   }
 };
 
-// End game
-export const endGame = async (gameId) => {
+export const getGameByPin = async (pin) => {
   try {
-    const res = await api.post('/api/game/end', { gameId });
-    return res.data;
-  } catch (err) {
-    throw err;
+    const response = await axios.get(`${API_URL}/pin/${pin}`);
+    return response.data;
+  } catch (error) {
+    throw error.response?.data?.error || 'Failed to get game';
   }
+};
+
+// You can still export default if needed
+export default {
+  createGame,
+  getGame,
+  getGameByPin
 };

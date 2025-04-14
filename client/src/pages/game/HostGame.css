@@ -1,0 +1,94 @@
+.host-game {
+    max-width: 800px;
+    margin: 0 auto;
+    padding: 20px;
+  }
+  
+  .loading {
+    text-align: center;
+    padding: 50px;
+  }
+  
+  .loading-spinner {
+    border: 4px solid #f3f3f3;
+    border-top: 4px solid #3498db;
+    border-radius: 50%;
+    width: 40px;
+    height: 40px;
+    animation: spin 1s linear infinite;
+    margin: 20px auto;
+  }
+  
+  @keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+  }
+  
+  .game-header {
+    text-align: center;
+    margin-bottom: 30px;
+  }
+  
+  .game-header h1 {
+    font-size: 3em;
+    color: #333;
+    margin-bottom: 10px;
+  }
+  
+  .quiz-name {
+    font-size: 1.2em;
+    color: #666;
+  }
+  
+  .players-section {
+    background: #f5f5f5;
+    padding: 20px;
+    border-radius: 8px;
+    margin-bottom: 20px;
+  }
+  
+  .players-list {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+    gap: 10px;
+    margin-top: 15px;
+  }
+  
+  .player-item {
+    background: white;
+    padding: 10px;
+    border-radius: 4px;
+    text-align: center;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  }
+  
+  .no-players {
+    text-align: center;
+    color: #666;
+    padding: 20px;
+  }
+  
+  .game-controls {
+    text-align: center;
+  }
+  
+  .start-button {
+    padding: 15px 40px;
+    font-size: 1.2em;
+    background: #4CAF50;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: background-color 0.3s;
+  }
+  
+  .start-button:disabled {
+    background: #cccccc;
+    cursor: not-allowed;
+  }
+  
+  .error {
+    text-align: center;
+    color: #ff4444;
+  }
