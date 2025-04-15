@@ -48,9 +48,25 @@ app.get('/api/test', (req, res) => {
 require('./socket/socket')(io);
 
 io.on("connection", (socket) => {
+  // Обработчик присоединения хоста к игре
+  socket.on("host-join", async ({ pin, gameId }) => {
+    try {
+      const game = await Game.findById(gameId);
+      if (game) {
+        socket.join(pin);
+        // Отправляем текущий список игроков хосту
+        socket.emit("update-players", game.players || []);
+      }
+    } catch (error) {
+      console.error("Host join error:", error);
+    }
+  });
+
+  // Обработчик присоединения игрока
   socket.on("player-join", async ({ pin, nickname }) => {
     try {
-      const game = await Game.findOne({ pin });
+      const game = await Game.findOne({ pin, isCompleted: false });
+      
       if (!game) {
         socket.emit("game-error", "Game not found");
         return;
@@ -62,19 +78,41 @@ io.on("connection", (socket) => {
         score: 0
       };
 
+      // Добавляем игрока в массив
+      if (!game.players) {
+        game.players = [];
+      }
       game.players.push(player);
       await game.save();
 
+      // Присоединяем сокет к комнате игры
       socket.join(pin);
+      
+      // Отправляем подтверждение игроку
       socket.emit("game-joined");
+      
+      // Оповещаем всех в комнате о новом игроке
       io.to(pin).emit("player-joined", player);
+      // Отправляем обновленный список игроков
+      io.to(pin).emit("update-players", game.players);
+      
     } catch (error) {
-      socket.emit("game-error", error.message);
+      console.error("Player join error:", error);
+      socket.emit("game-error", "Failed to join game");
     }
   });
 
   socket.on("start-game", async ({ pin }) => {
-    io.to(pin).emit("game-started");
+    try {
+      const game = await Game.findOne({ pin });
+      if (game) {
+        game.isActive = true;
+        await game.save();
+        io.to(pin).emit("game-started");
+      }
+    } catch (error) {
+      console.error("Error starting game:", error);
+    }
   });
 
   socket.on("new-question", async ({ pin, question }) => {

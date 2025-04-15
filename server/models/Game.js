@@ -1,23 +1,7 @@
 // server/models/Game.js
 const mongoose = require('mongoose');
 
-const PlayerResultSchema = new mongoose.Schema({
-  id: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'Player',
-    required: true
-  },
-  name: {
-    type: String,
-    required: true
-  },
-  score: {
-    type: Number,
-    default: 0
-  }
-});
-
-const GameSchema = new mongoose.Schema({
+const gameSchema = new mongoose.Schema({
   quiz: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Quiz',
@@ -30,8 +14,7 @@ const GameSchema = new mongoose.Schema({
   },
   pin: {
     type: String,
-    required: true,
-    unique: true
+    required: true
   },
   isActive: {
     type: Boolean,
@@ -41,17 +24,18 @@ const GameSchema = new mongoose.Schema({
     type: Boolean,
     default: false
   },
-  startedAt: {
-    type: Date
-  },
-  endedAt: {
-    type: Date
-  },
-  results: [PlayerResultSchema],
+  players: [{
+    id: String,
+    nickname: String,
+    score: {
+      type: Number,
+      default: 0
+    }
+  }],
   createdAt: {
     type: Date,
     default: Date.now
   }
 });
 
-module.exports = mongoose.model('Game', GameSchema);
+module.exports = mongoose.model('Game', gameSchema);

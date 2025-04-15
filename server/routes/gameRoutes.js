@@ -15,24 +15,19 @@ const generatePin = () => {
 
 // Создание новой игры
 router.post('/create', async (req, res) => {
-  console.log('Create game request received:', req.body); // Debug log
-  
   try {
     const { quizId, hostId } = req.body;
     
-    // Validate required fields
+    // Validate input
     if (!quizId || !hostId) {
-      console.log('Missing required fields:', { quizId, hostId }); // Debug log
       return res.status(400).json({ 
-        error: 'Quiz ID and Host ID are required',
-        received: { quizId, hostId }
+        error: 'Quiz ID and Host ID are required' 
       });
     }
 
-    // Verify quiz exists
+    // Check if quiz exists
     const quiz = await Quiz.findById(quizId);
     if (!quiz) {
-      console.log('Quiz not found:', quizId); // Debug log
       return res.status(404).json({ error: 'Quiz not found' });
     }
 
@@ -52,27 +47,31 @@ router.post('/create', async (req, res) => {
     
     // Populate quiz data before sending response
     const populatedGame = await Game.findById(game._id).populate('quiz');
-    console.log('Game created successfully:', populatedGame); // Debug log
     
-    res.status(201).json(populatedGame);
+    // Make sure to send a response
+    return res.status(201).json(populatedGame);
   } catch (error) {
     console.error('Create game error:', error);
-    res.status(500).json({ 
-      error: 'Failed to create game',
-      details: error.message 
-    });
+    return res.status(500).json({ error: 'Failed to create game' });
   }
 });
 
 // Получение игры по ID
 router.get('/:id', async (req, res) => {
   try {
+    if (!req.params.id) {
+      return res.status(400).json({ error: 'Game ID is required' });
+    }
+
     const game = await Game.findById(req.params.id).populate('quiz');
+    
     if (!game) {
       return res.status(404).json({ error: 'Game not found' });
     }
+
     res.json(game);
   } catch (error) {
+    console.error('Get game error:', error);
     res.status(500).json({ error: 'Failed to get game' });
   }
 });
