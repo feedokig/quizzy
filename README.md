@@ -129,5 +129,5 @@ MIT License
 
 ---
 
-Made with ❤️ by [Deforkk](https://github.com/Deforkk)
+Made with ❤️ by [feedokig](https://github.com/feedokig) & [holerrrr](https://github.com/holerrrr)
 
