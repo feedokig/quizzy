@@ -18,9 +18,9 @@ import EditQuiz from './pages/quiz/EditQuiz';
 import QuizDetails from './pages/quiz/QuizDetails';
 
 // Game pages
-import HostGame from './pages/game/HostGame';
 import JoinGame from './pages/game/JoinGame';
 import PlayerGame from './pages/game/PlayerGame';
+import HostGame from './pages/game/HostGame';
 import GameResults from './pages/game/GameResults';
 
 // Protected route component
@@ -77,7 +77,9 @@ function App() {
           
           {/* Public Game Routes */}
           <Route path="/" element={<JoinGame />} />
+          <Route path="/host/:gameId" element={<HostGame />} />
           <Route path="/play/:pin" element={<PlayerGame />} />
+          <Route path="/game/join" element={<JoinGame />} />          
           <Route path="/results/:id" element={<GameResults />} />
           
           {/* Default route */}

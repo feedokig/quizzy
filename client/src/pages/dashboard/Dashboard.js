@@ -3,7 +3,7 @@ import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { getUserQuizzes, deleteQuiz } from '../../services/quizService';
 import { useNavigate } from 'react-router-dom';
-import { createGame } from '../../services/gameService';
+import gameService from "../../services/gameService";
 import { useAuth } from '../../contexts/AuthContext';
 import Spinner from '../../components/ui/Spinner';
 import Alert from '../../components/ui/Alert';
@@ -47,16 +47,28 @@ const Dashboard = () => {
 
   const handleHostGame = async (quizId) => {
     try {
-      const game = await createGame(quizId);
-      if (game && game.pin) {
-        navigate(`/host/${game._id}`);
+      setAlert(null);
+      console.log('Starting game for quiz:', quizId);
+      const game = await gameService.createGame(quizId);
+      console.log('Game created:', game);
+      
+      if (!game || !game._id) {
+        throw new Error('Invalid game data received');
       }
+      
+      // Navigate with the game data
+      navigate(`/host/${game._id}`, { 
+        state: { game } 
+      });
     } catch (error) {
       console.error('Failed to host game:', error);
-      // Show error to user (using your preferred method - alert, toast, etc)
+      setAlert({
+        type: 'error',
+        message: error.message || 'Failed to create game'
+      });
     }
   };
-
+  
   if (loading) return <Spinner />;
 
   return (

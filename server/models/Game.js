@@ -24,13 +24,21 @@ const gameSchema = new mongoose.Schema({
     type: Boolean,
     default: false
   },
+  currentQuestionIndex: {
+    type: Number,
+    default: 0
+  },
   players: [{
     id: String,
     nickname: String,
     score: {
       type: Number,
       default: 0
-    }
+    },
+    answers: [{
+      questionIndex: Number,
+      answerIndex: Number
+    }]
   }],
   createdAt: {
     type: Date,

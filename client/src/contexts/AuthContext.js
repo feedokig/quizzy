@@ -53,20 +53,24 @@ export function AuthProvider({ children }) {
   };
 
   // Login user
-  const login = async (userData) => {
-    try {
-      const res = await api.post('/api/auth/login', userData);
-      localStorage.setItem('token', res.data.token);
-      setAuthToken(res.data.token);
-      setUser(res.data.user);
-      setIsAuthenticated(true);
-      setError(null);
-      return res.data;
-    } catch (err) {
-      setError(err.response?.data?.message || 'Login failed');
-      throw err;
-    }
-  };
+const login = async (userData) => {
+  try {
+    const res = await api.post('/api/auth/login', userData);
+
+    localStorage.setItem('token', res.data.token);
+    localStorage.setItem('userId', res.data.user.id);
+    setAuthToken(res.data.token);
+    setUser(res.data.user);
+    setIsAuthenticated(true);
+    setError(null);
+
+    return res.data;
+  } catch (err) {
+    setError(err.response?.data?.message || 'Login failed');
+    throw err;
+  }
+};
+
 
   // Logout user
   const logout = () => {
