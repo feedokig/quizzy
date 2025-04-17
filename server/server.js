@@ -6,13 +6,15 @@ const http = require('http');
 const socketIo = require('socket.io');
 const path = require('path');
 const bodyParser = require('body-parser');
-require('dotenv').config();
+const dotenv = require('dotenv');
 const Game = require('./models/Game');
 
 // Импорт маршрутов
-const authRoutes = require('./routes/auth');
+const authRoutes = require('./routes/auth'); // Импорт маршрутов аутентификации
 const quizRoutes = require('./routes/quiz');
 const gameRoutes = require('./routes/gameRoutes');
+
+dotenv.config();
 
 // Инициализация приложения Express
 const app = express();
@@ -35,7 +37,7 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 
 // Routes
-app.use('/api/auth', authRoutes);  // Register auth routes
+app.use('/api/auth', authRoutes); // Регистрация маршрутов аутентификации
 app.use('/api/quiz', require('./routes/quiz'));
 app.use('/api/games', gameRoutes);  // Register game routes
 
@@ -160,3 +162,12 @@ app.use((err, req, res, next) => {
 // Запуск сервера
 const PORT = process.env.PORT || 5000;
 server.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+
+// Добавление маршрутов аутентификации
+const authController = require('./controllers/authController');
+const auth = require('./middleware/auth');
+const router = express.Router();
+
+router.post('/register', authController.register);
+router.post('/login', authController.login);
+router.get('/me', auth, authController.getMe);

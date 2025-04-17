@@ -23,6 +23,9 @@ import PlayerGame from './pages/game/PlayerGame';
 import HostGame from './pages/game/HostGame';
 import GameResults from './pages/game/GameResults';
 
+// Profile pages
+import EditProfile from './pages/profile/EditProfile';
+
 // Protected route component
 const ProtectedRoute = ({ children }) => {
   const { isAuthenticated, loading } = useAuth();
@@ -72,6 +75,11 @@ function App() {
           <Route path="/host/:id" element={
             <ProtectedRoute>
               <HostGame />
+            </ProtectedRoute>
+          } />
+          <Route path="/profile/edit" element={
+            <ProtectedRoute>
+              <EditProfile />
             </ProtectedRoute>
           } />
           

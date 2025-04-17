@@ -53,24 +53,29 @@ export function AuthProvider({ children }) {
   };
 
   // Login user
-const login = async (userData) => {
-  try {
-    const res = await api.post('/api/auth/login', userData);
+  const login = async (userData) => {
+    try {
+      const res = await api.post('/api/auth/login', userData);
 
-    localStorage.setItem('token', res.data.token);
-    localStorage.setItem('userId', res.data.user.id);
-    setAuthToken(res.data.token);
-    setUser(res.data.user);
-    setIsAuthenticated(true);
-    setError(null);
+      localStorage.setItem('token', res.data.token);
+      localStorage.setItem('userId', res.data.user.id);
+      setAuthToken(res.data.token);
+      setUser(res.data.user);
+      setIsAuthenticated(true);
+      setError(null);
 
+      return res.data;
+    } catch (err) {
+      setError(err.response?.data?.message || 'Login failed');
+      throw err;
+    }
+  };
+
+  // Update password
+  const updatePassword = async (currentPassword, newPassword) => {
+    const res = await api.post('/api/auth/update-password', { currentPassword, newPassword });
     return res.data;
-  } catch (err) {
-    setError(err.response?.data?.message || 'Login failed');
-    throw err;
-  }
-};
-
+  };
 
   // Logout user
   const logout = () => {
@@ -87,6 +92,7 @@ const login = async (userData) => {
     error,
     register,
     login,
+    updatePassword,
     logout
   };
 

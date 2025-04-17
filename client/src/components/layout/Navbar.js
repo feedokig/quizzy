@@ -25,7 +25,9 @@ const Navbar = () => {
             <>
               <Link to="/dashboard" className="nav-link">Dashboard</Link>
               <Link to="/create-quiz" className="nav-link">Create Quiz</Link>
-              <span className="nav-username">Hi, {user?.username}</span>
+              <span className="nav-username">
+                <Link to="/profile/edit">Hi, {user?.username}</Link>
+              </span>
               <button onClick={handleLogout} className="btn-logout">Logout</button>
             </>
           ) : (
