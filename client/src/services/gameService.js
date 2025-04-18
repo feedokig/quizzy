@@ -33,11 +33,16 @@ const gameService = {
         throw new Error('Game ID is required');
       }
 
-      const response = await axios.get(`${API_URL}/${gameId}`);
-      return response.data;
+      const response = await fetch(`/api/games/${gameId}`);
+      if (!response.ok) {
+        throw new Error(`Failed to get game: ${response.statusText}`);
+      }
+
+      const data = await response.json();
+      return data;
     } catch (error) {
       console.error('Get game error:', error);
-      throw new Error(error.response?.data?.error || 'Failed to get game');
+      throw error;
     }
   },
 

@@ -1,0 +1,82 @@
+.game-results {
+    font-family: 'Rubik', sans-serif;
+    background: linear-gradient(145deg, #4b6cb7, #182848);
+    color: #fff;
+    min-height: 100vh;
+    padding: 2rem;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+  
+  .game-results h1 {
+    font-size: 3rem;
+    margin-bottom: 1rem;
+    text-align: center;
+  }
+  
+  .top-three {
+    display: flex;
+    gap: 2rem;
+    margin-bottom: 3rem;
+    justify-content: center;
+    flex-wrap: wrap;
+  }
+  
+  .player-card {
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 20px;
+    padding: 1.5rem;
+    text-align: center;
+    width: 160px;
+    position: relative;
+    box-shadow: 0 0 15px rgba(255, 255, 255, 0.1);
+  }
+  
+  .player-card.gold { border: 3px solid gold; }
+  .player-card.silver { border: 3px solid silver; }
+  .player-card.bronze { border: 3px solid #cd7f32; }
+  
+  .player-avatar {
+    width: 80px;
+    height: 80px;
+    border-radius: 50%;
+    background: #ccc;
+    margin: 0 auto 1rem;
+  }
+  
+  .ranking-list {
+    max-width: 600px;
+    width: 100%;
+  }
+  
+  .ranking-list ul {
+    list-style: none;
+    padding: 0;
+  }
+  
+  .ranking-list li {
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 12px;
+    padding: 1rem;
+    margin: 0.5rem 0;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  
+  .play-again {
+    margin-top: 3rem;
+    padding: 1rem 2rem;
+    font-size: 1.2rem;
+    background: #00d8ff;
+    color: #000;
+    border: none;
+    border-radius: 12px;
+    cursor: pointer;
+    transition: 0.3s ease;
+  }
+  
+  .play-again:hover {
+    background: #00b7e6;
+  }

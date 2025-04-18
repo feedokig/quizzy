@@ -10,8 +10,8 @@ const PlayerGame = () => {
   const [socket, setSocket] = useState(null);
   const [question, setQuestion] = useState(null);
   const [selectedAnswer, setSelectedAnswer] = useState(null);
+  const [correctAnswer, setCorrectAnswer] = useState(null);
   const [score, setScore] = useState(0);
-  const [lastPoints, setLastPoints] = useState(null);
   const [gameState, setGameState] = useState('playing');
   const nickname = localStorage.getItem('playerNickname');
 
@@ -23,6 +23,7 @@ const PlayerGame = () => {
       console.log('Received question:', questionData);
       setQuestion(questionData);
       setSelectedAnswer(null);
+      setCorrectAnswer(null);
     });
 
     newSocket.on('answer-result', (result) => {
@@ -30,18 +31,13 @@ const PlayerGame = () => {
       if (result.points) {
         setScore(prev => prev + result.points);
       }
-      setQuestion(prev => ({
-        ...prev,
-        showCorrectAnswer: true,
-        correctAnswer: result.correctAnswer
-      }));
+      setCorrectAnswer(result.correctAnswer);
     });
 
     newSocket.on('game-ended', () => {
       setGameState('ended');
     });
 
-    // Присоединяемся к игре
     const nickname = localStorage.getItem('playerNickname');
     console.log('Joining game:', { pin, nickname });
     newSocket.emit('player-join', { pin, nickname });
@@ -51,15 +47,31 @@ const PlayerGame = () => {
 
   const handleAnswer = (index) => {
     if (selectedAnswer !== null || !question) return;
-    
-    console.log('Submitting answer:', index);
     setSelectedAnswer(index);
-    
+    console.log('Submitting answer:', index);
     socket.emit('submit-answer', {
       pin,
       answerIndex: index
     });
   };
+
+  const renderAnswer = (option, index) => (
+    <button
+      key={index}
+      className={`answer-button answer-${index} ${
+        selectedAnswer === index ? 'selected' : ''
+      } ${
+        correctAnswer !== null && index === correctAnswer ? 'correct' : ''
+      } ${
+        correctAnswer !== null && selectedAnswer === index && 
+        index !== correctAnswer ? 'wrong' : ''
+      }`}
+      onClick={() => handleAnswer(index)}
+      disabled={selectedAnswer !== null}
+    >
+      {option}
+    </button>
+  );
 
   return (
     <div className="player-game">
@@ -81,28 +93,7 @@ const PlayerGame = () => {
             <h2 className="question-text">{question.text}</h2>
             
             <div className="answers-grid">
-              {question.options.map((option, index) => (
-                <button
-                  key={index}
-                  className={`answer-button answer-${index} ${
-                    selectedAnswer === index ? 'selected' : ''
-                  } ${
-                    question.showCorrectAnswer && index === question.correctAnswer ? 'correct' : ''
-                  } ${
-                    question.showCorrectAnswer && selectedAnswer === index && 
-                    index !== question.correctAnswer ? 'wrong' : ''
-                  }`}
-                  onClick={() => handleAnswer(index)}
-                  disabled={selectedAnswer !== null}
-                >
-                  {option}
-                  {selectedAnswer !== null && lastPoints && index === selectedAnswer && (
-                    <div className="points-earned">
-                      {lastPoints > 0 ? `+${lastPoints}` : ''}
-                    </div>
-                  )}
-                </button>
-              ))}
+              {question.options.map((option, index) => renderAnswer(option, index))}
             </div>
           </div>
         </>

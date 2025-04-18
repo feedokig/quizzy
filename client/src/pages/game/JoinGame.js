@@ -10,16 +10,19 @@ const JoinGame = () => {
 
   const handleJoinGame = async (e) => {
     e.preventDefault();
-    if (!pin || !nickname) {
+    if (!pin || !nickname.trim()) {
       setError('Please enter both PIN and nickname');
       return;
     }
-
+  
     try {
-      // Сохраняем никнейм в localStorage для использования в игре
-      localStorage.setItem('playerNickname', nickname);
-      // Перенаправляем на страницу игры
-      navigate(`/play/${pin}`);
+      // Store nickname in localStorage
+      localStorage.setItem('playerNickname', nickname.trim());
+      
+      // Navigate to game with nickname as state
+      navigate(`/play/${pin}`, {
+        state: { nickname: nickname.trim() }
+      });
     } catch (error) {
       setError('Failed to join game. Please check the PIN and try again.');
     }

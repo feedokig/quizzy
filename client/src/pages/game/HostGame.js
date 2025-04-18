@@ -15,49 +15,48 @@ const HostGame = () => {
   const [players, setPlayers] = useState([]);
   const [socket, setSocket] = useState(null);
   const [currentQuestion, setCurrentQuestion] = useState(null);
-  const [answers, setAnswers] = useState({});
   const [showResults, setShowResults] = useState(false);
-  const [gameState, setGameState] = useState("waiting"); // waiting, playing, finished
+  const [gameState, setGameState] = useState("waiting");
+  const [showCorrectAnswer, setShowCorrectAnswer] = useState(false);
 
   useEffect(() => {
     const initGame = async () => {
       try {
+        // Clear players when initializing new game
+        setPlayers([]);
         setLoading(true);
         const hostId = localStorage.getItem("userId");
-        
+
         if (!hostId) {
           throw new Error("User not authenticated");
         }
 
         let gameData = game;
-        
+
         if (!gameData) {
           gameData = await gameService.getGame(gameId);
-          console.log('Loaded game data:', gameData); // Debug log
-          
+          console.log("Loaded game data:", gameData);
+
           if (!gameData || !gameData.pin) {
             throw new Error("Invalid game data received");
           }
           if (!gameData.quiz || !gameData.quiz.questions) {
-            console.error('Quiz or questions missing:', gameData); // Debug log
+            console.error("Quiz or questions missing:", gameData);
             throw new Error("Quiz data is missing");
           }
           setGame(gameData);
         }
 
-        // Initialize socket connection
         const newSocket = io("http://localhost:5000", {
-          transports: ['websocket']
-        });
-        
-        // Join host to game room
-        newSocket.emit("host-join", { 
-          pin: gameData.pin,
-          gameId: gameData._id,
-          hostId 
+          transports: ["websocket"],
         });
 
-        // Listen for player updates
+        newSocket.emit("host-join", {
+          pin: gameData.pin,
+          gameId: gameData._id,
+          hostId,
+        });
+
         newSocket.on("update-players", (updatedPlayers) => {
           console.log("Players updated:", updatedPlayers);
           setPlayers(updatedPlayers);
@@ -65,18 +64,49 @@ const HostGame = () => {
 
         newSocket.on("player-joined", (player) => {
           console.log("Player joined:", player);
-          setPlayers(prev => [...prev, player]);
+          const newPlayer = {
+            id: player.id,
+            nickname:
+              player.nickname ||
+              localStorage.getItem("playerNickname") ||
+              "Anonymous",
+            score: 0,
+            lastAnswer: null,
+          };
+          setPlayers((prev) => {
+            // Check if player already exists
+            const exists = prev.some((p) => p.id === player.id);
+            if (!exists) {
+              return [...prev, newPlayer];
+            }
+            return prev;
+          });
         });
 
         newSocket.on("player-left", (playerId) => {
-          setPlayers(prev => prev.filter(p => p.id !== playerId));
+          console.log("Player left:", playerId);
+          setPlayers((prev) => prev.filter((p) => p.id !== playerId));
         });
 
-        newSocket.on("player-answer", ({ playerId, answerIndex }) => {
-          setAnswers(prev => ({
-            ...prev,
-            [playerId]: answerIndex
-          }));
+        // Update player scores properly
+        // Update player scores when answers are received
+        newSocket.on("player-answered", ({ playerId, score, answerIndex }) => {
+          console.log("Player answered:", { playerId, score, answerIndex });
+          setPlayers((prev) =>
+            prev.map((player) =>
+              player.id === playerId
+                ? { ...player, score: score, lastAnswer: answerIndex } // Update score directly
+                : player
+            )
+          );
+
+          // Show correct answer after a delay
+          setTimeout(() => setShowCorrectAnswer(true), 2000);
+        });
+
+        newSocket.on("question", (questionData) => {
+          setCurrentQuestion(questionData);
+          setShowResults(false);
         });
 
         newSocket.on("error", (error) => {
@@ -86,7 +116,6 @@ const HostGame = () => {
 
         setSocket(newSocket);
         setLoading(false);
-
       } catch (err) {
         console.error("Failed to initialize game:", err);
         setError(err.message || "Failed to load game");
@@ -106,112 +135,175 @@ const HostGame = () => {
   const handleStartGame = () => {
     if (socket && game) {
       setGameState("playing");
-      socket.emit("start-game", { 
+      socket.emit("start-game", {
         pin: game.pin,
-        gameId: game._id // Добавляем gameId
+        gameId: game._id,
       });
-      sendQuestion(0); // Отправляем первый вопрос
+      sendQuestion(0);
     }
   };
 
   const sendQuestion = (index) => {
     const question = game.quiz.questions[index];
     if (!question) {
-      console.error('Question not found:', index);
+      console.error("Question not found:", index);
       return;
     }
 
-    console.log('Sending question:', question);
+    console.log("Sending question:", question);
 
-    // Устанавливаем текущий вопрос
     setCurrentQuestion({
       number: index + 1,
       text: question.question,
       options: question.options,
       correctAnswer: question.correctAnswer,
-      totalQuestions: game.quiz.questions.length
+      totalQuestions: game.quiz.questions.length,
     });
 
-    setAnswers({});
     setShowResults(false);
 
-    // Отправляем вопрос всем игрокам
     socket.emit("new-question", {
       pin: game.pin,
       question: {
         questionNumber: index + 1,
         totalQuestions: game.quiz.questions.length,
         text: question.question,
-        options: question.options.map(opt => opt), // Отправляем только текст опций
-        correctAnswer: question.correctAnswer
-      }
+        options: question.options.map((opt) => opt),
+        correctAnswer: question.correctAnswer,
+      },
     });
   };
 
   const handleNextQuestion = () => {
-    console.log('Requesting next question');
-    socket.emit('next-question', {
+    setShowCorrectAnswer(false);
+
+    if (currentQuestion.number >= currentQuestion.totalQuestions) {
+      handleEndGame(); // End the game if it's the last question
+      return;
+    }
+
+    const nextQuestionIndex = currentQuestion.number;
+    sendQuestion(nextQuestionIndex);
+
+    // Emit event to all players
+    socket.emit("next-question", {
       pin: game.pin,
-      gameId: game._id
+      gameId: game._id,
     });
   };
 
   const handleEndGame = () => {
     if (socket && game) {
-      socket.emit("end-game", { pin: game.pin });
+      const finalResults = [...players].sort((a, b) => b.score - a.score);
+      
+      // Emit end-game event with final results
+      socket.emit("end-game", { 
+        pin: game.pin,
+        results: finalResults,
+        gameId: game._id
+      });
+      
+      // Update local state
       setGameState("finished");
       setShowResults(true);
-      navigate('/dashboard');
+      
+      // Navigate to results page
+      navigate(`/game/${gameId}/results`, { 
+        state: { 
+          players: finalResults,
+          quiz: game.quiz
+        }
+      });
     }
   };
 
   const handleKickPlayer = (playerId) => {
     if (socket && game) {
-      socket.emit("kick-player", { 
-        pin: game.pin, 
-        playerId 
+      socket.emit("kick-player", {
+        pin: game.pin,
+        playerId,
       });
-      setPlayers(prev => prev.filter(p => p.id !== playerId));
+      setPlayers((prev) => prev.filter((p) => p.id !== playerId));
     }
   };
 
   const renderQuestion = () => {
     if (!currentQuestion) return null;
 
+    const isLastQuestion = currentQuestion.number >= currentQuestion.totalQuestions;
+
     return (
       <div className="current-question">
-        <h2 className="question-text">{currentQuestion.text}</h2>
-        
+        <h2>Question {currentQuestion.number} of {currentQuestion.totalQuestions}</h2>
+        <h3>{currentQuestion.text}</h3>
+
         <div className="answers-grid">
           {currentQuestion.options.map((option, index) => (
-            <div 
-              key={index} 
+            <div
+              key={index}
               className={`answer-box answer-${index} ${
-                showResults && index === currentQuestion.correctAnswer ? 'correct-answer' : ''
+                showCorrectAnswer && index === currentQuestion.correctAnswer
+                  ? "correct"
+                  : ""
               }`}
             >
               <div className="answer-content">
                 <span className="answer-text">{option}</span>
                 <span className="answer-count">
-                  {Object.values(answers).filter(a => a === index).length}
+                  {players.filter((p) => p.lastAnswer === index).length}
                 </span>
               </div>
             </div>
           ))}
         </div>
 
-        <button 
-          className="next-question-btn"
-          onClick={handleNextQuestion}
+        <button
+          className={`question-control-btn ${isLastQuestion ? "finish-btn" : ""}`}
+          onClick={isLastQuestion ? handleEndGame : handleNextQuestion}
         >
-          {currentQuestion.questionNumber === currentQuestion.totalQuestions 
-            ? 'End Game' 
-            : 'Next Question'
-          }
+          {isLastQuestion ? "🏁 Finish Quiz" : "Next Question →"}
         </button>
       </div>
     );
   };
+
+  const renderFinalResults = () => (
+    <div className="final-results">
+      <h1>🏆 Quiz Over – Final Rankings</h1>
+      <div className="top-three">
+        {players
+          .sort((a, b) => b.score - a.score)
+          .slice(0, 3)
+          .map((player, index) => (
+            <div
+              key={player.id}
+              className={`player-card ${["silver", "gold", "bronze"][index]}`}
+            >
+              <div className="player-avatar"></div>
+              <div className="player-name">{player.nickname}</div>
+              <div className="player-score">{player.score} pts</div>
+            </div>
+          ))}
+      </div>
+      <div className="ranking-list">
+        <ul>
+          {players
+            .sort((a, b) => b.score - a.score)
+            .slice(3)
+            .map((player, index) => (
+              <li key={player.id}>
+                <span className="rank-number">{index + 4}</span>
+                <span className="rank-name">{player.nickname}</span>
+                <span className="rank-score">{player.score} pts</span>
+              </li>
+            ))}
+        </ul>
+      </div>
+      <button className="play-again" onClick={() => navigate("/dashboard")}>
+        🔁 Back to Dashboard
+      </button>
+    </div>
+  );
 
   if (loading) {
     return (
@@ -227,7 +319,9 @@ const HostGame = () => {
       <div className="host-game error">
         <h2>Error</h2>
         <p>{error}</p>
-        <button onClick={() => navigate('/dashboard')}>Back to Dashboard</button>
+        <button onClick={() => navigate("/dashboard")}>
+          Back to Dashboard
+        </button>
       </div>
     );
   }
@@ -236,7 +330,9 @@ const HostGame = () => {
     return (
       <div className="host-game error">
         <h2>Game not found</h2>
-        <button onClick={() => navigate('/dashboard')}>Back to Dashboard</button>
+        <button onClick={() => navigate("/dashboard")}>
+          Back to Dashboard
+        </button>
       </div>
     );
   }
@@ -252,16 +348,21 @@ const HostGame = () => {
         <div className="players-panel">
           <h2>Players ({players.length})</h2>
           <div className="players-list">
-            {players.map(player => (
+            {players.map((player) => (
               <div key={player.id} className="player-item">
-                <span className="player-name">{player.nickname}</span>
-                <span className="player-score">{player.score || 0}</span>
+                <div className="player-info">
+                  <span className="player-nickname">{player.nickname}</span>
+                  <span className="player-score">
+                    Score: {player.score || 0}
+                  </span>
+                </div>
                 {gameState === "waiting" && (
-                  <button 
+                  <button
                     className="kick-button"
                     onClick={() => handleKickPlayer(player.id)}
+                    aria-label={`Kick ${player.nickname}`}
                   >
-                    Kick
+                    ✕
                   </button>
                 )}
               </div>
@@ -273,10 +374,10 @@ const HostGame = () => {
         </div>
 
         <div className="game-main">
-          {gameState === 'waiting' && (
+          {gameState === "waiting" && (
             <div className="waiting-screen">
               <h2>Waiting for players...</h2>
-              <button 
+              <button
                 className="start-button"
                 onClick={handleStartGame}
                 disabled={players.length === 0}
@@ -286,24 +387,9 @@ const HostGame = () => {
             </div>
           )}
 
-          {gameState === 'playing' && renderQuestion()}
-          
-          {gameState === 'finished' && (
-            <div className="final-results">
-              <h2>Game Finished!</h2>
-              <div className="leaderboard">
-                {[...players]
-                  .sort((a, b) => b.score - a.score)
-                  .map((player, index) => (
-                    <div key={player.id} className="leaderboard-item">
-                      <span className="position">#{index + 1}</span>
-                      <span className="player-name">{player.nickname}</span>
-                      <span className="final-score">{player.score}</span>
-                    </div>
-                  ))}
-              </div>
-            </div>
-          )}
+          {gameState === "playing" && renderQuestion()}
+
+          {gameState === "finished" && renderFinalResults()}
         </div>
       </div>
     </div>

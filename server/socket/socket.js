@@ -3,7 +3,6 @@ const Game = require('../models/Game');
 const Player = require('../models/Player');
 
 module.exports = (io) => {
-  // Хранилище активных игр
   const activeGames = new Map();
 
   io.on('connection', (socket) => {
@@ -16,14 +15,16 @@ module.exports = (io) => {
 
         if (game) {
           socket.join(pin);
-          socket.emit('update-players', game.players || []);
+          // Reset players for new session
+          game.players = [];
+          await game.save();
+          socket.emit('update-players', []);
         }
       } catch (error) {
         console.error('Host join error:', error);
       }
     });
 
-    // Обработка создания игры
     socket.on('create-game', async ({ gameId, hostId }) => {
       try {
         const game = await Game.findById(gameId).populate('quiz');
@@ -33,10 +34,8 @@ module.exports = (io) => {
           return;
         }
         
-        // Создаем комнату для игры
         socket.join(game.pin);
         
-        // Добавляем игру в активные
         activeGames.set(game.pin, {
           gameId: game._id,
           hostId,
@@ -54,8 +53,49 @@ module.exports = (io) => {
         socket.emit('game-error', { message: 'Error creating game' });
       }
     });
-    
-    // Обработка присоединения к игре
+
+    socket.on('player-join', async ({ pin, nickname }) => {
+      try {
+        const game = await Game.findOne({ pin }).populate('quiz');
+        if (!game) {
+          socket.emit('join-error', { message: 'Game not found' });
+          return;
+        }
+
+        // Создаем нового игрока
+        const player = {
+          id: socket.id,
+          socketId: socket.id, // Добавляем socketId
+          nickname: nickname,
+          score: 0
+        };
+
+        // Добавляем игрока в игру
+        game.players.push(player);
+        await game.save();
+
+        // Присоединяем сокет к комнате игры
+        socket.join(pin);
+        
+        // Сохраняем данные в activeGames
+        if (!activeGames.has(pin)) {
+          activeGames.set(pin, { 
+            gameId: game._id,
+            players: new Map() 
+          });
+        }
+        activeGames.get(pin).players.set(socket.id, player);
+
+        // Оповещаем всех об обновлении списка игроков
+        io.to(pin).emit('player-joined', { players: game.players });
+        
+        console.log(`Player ${nickname} joined game ${pin}`);
+      } catch (error) {
+        console.error('Join error:', error);
+        socket.emit('join-error', { message: 'Failed to join game' });
+      }
+    });
+
     socket.on('join-game', async ({ pin, playerName }) => {
       try {
         const game = activeGames.get(pin);
@@ -65,7 +105,6 @@ module.exports = (io) => {
           return;
         }
         
-        // Создаем нового игрока
         const player = new Player({
           name: playerName,
           socketId: socket.id,
@@ -74,23 +113,19 @@ module.exports = (io) => {
         
         await player.save();
         
-        // Добавляем игрока в игру
         game.players.push({
           id: player._id,
           name: playerName,
           score: 0
         });
         
-        // Присоединяем игрока к комнате
         socket.join(pin);
         
-        // Отправляем данные об игроке
         socket.emit('joined-game', {
           playerId: player._id,
           playerName
         });
         
-        // Оповещаем хоста о новом игроке
         io.to(pin).emit('player-joined', {
           players: game.players
         });
@@ -110,13 +145,10 @@ module.exports = (io) => {
           game.currentQuestionIndex = 0;
           await game.save();
 
-          // Отправляем событие начала игры всем игрокам
           io.to(pin).emit("game-started");
 
-          // Получаем первый вопрос
           const firstQuestion = game.quiz.questions[0];
           
-          // Отправляем первый вопрос всем игрокам
           io.to(pin).emit("question", {
             questionNumber: 1,
             totalQuestions: game.quiz.questions.length,
@@ -141,53 +173,33 @@ module.exports = (io) => {
     socket.on('submit-answer', async ({ pin, answerIndex }) => {
       try {
         const game = await Game.findOne({ pin }).populate('quiz');
-        if (!game) {
-          console.log('Game not found');
-          return;
-        }
+        if (!game) return;
 
         const player = game.players.find(p => p.socketId === socket.id);
-        if (!player) {
-          console.log('Player not found:', socket.id);
-          return;
-        }
+        if (!player) return;
 
         const currentQuestion = game.quiz.questions[game.currentQuestionIndex];
-        if (!currentQuestion) {
-          console.log('Question not found');
-          return;
-        }
-
-        console.log('Processing answer:', {
-          answerIndex,
-          correctAnswer: currentQuestion.correctAnswer
-        });
-
         const isCorrect = answerIndex === currentQuestion.correctAnswer;
-        const points = isCorrect ? 1000 : 0;
 
-        // Обновляем счет игрока
         if (isCorrect) {
-          player.score = (player.score || 0) + points;
+          player.score += 1000;
+          await game.save();
         }
 
-        await game.save();
-
-        // Отправляем результат игроку
+        // Send result to player with correct answer
         socket.emit('answer-result', {
           correct: isCorrect,
-          points: points,
+          points: isCorrect ? 1000 : 0,
           correctAnswer: currentQuestion.correctAnswer
         });
 
-        // Оповещаем хоста
+        // Update host view
         io.to(pin).emit('player-answered', {
           playerId: socket.id,
-          playerName: player.name,
-          answerIndex,
-          isCorrect
+          nickname: player.nickname,
+          score: player.score,
+          answerIndex
         });
-
       } catch (error) {
         console.error('Submit answer error:', error);
       }
@@ -198,32 +210,22 @@ module.exports = (io) => {
         console.log('Next question requested:', { pin, gameId });
         
         const game = await Game.findById(gameId).populate('quiz');
-        if (!game) {
-          console.log('Game not found');
-          return;
-        }
+        if (!game) return;
 
-        const nextIndex = game.currentQuestionIndex + 1;
-        
-        if (nextIndex < game.quiz.questions.length) {
-          game.currentQuestionIndex = nextIndex;
-          await game.save();
+        game.currentQuestionIndex++;
+        await game.save();
 
-          const question = game.quiz.questions[nextIndex];
-          console.log('Sending next question:', question);
+        const question = game.quiz.questions[game.currentQuestionIndex];
+        const questionData = {
+          text: question.question,
+          options: question.options,
+          questionNumber: game.currentQuestionIndex + 1,
+          totalQuestions: game.quiz.questions.length,
+          correctAnswer: question.correctAnswer
+        };
 
-          io.to(pin).emit('question', {
-            text: question.question,
-            options: question.options,
-            questionNumber: nextIndex + 1,
-            totalQuestions: game.quiz.questions.length,
-            correctAnswer: question.correctAnswer
-          });
-        } else {
-          game.isCompleted = true;
-          await game.save();
-          io.to(pin).emit('game-ended');
-        }
+        // Send to both host and players
+        io.to(pin).emit('question', questionData);
       } catch (error) {
         console.error('Next question error:', error);
       }
@@ -323,28 +325,40 @@ module.exports = (io) => {
       }
     });
 
-    // Обработка отключения
-    socket.on('disconnect', () => {
-      console.log('Client disconnected:', socket.id);
-      
-      for (const [pin, game] of activeGames.entries()) {
+    socket.on('disconnect', async () => {
+      try {
+        // Find the game this socket was connected to
+        const gamePin = Array.from(socket.rooms).find(room => room !== socket.id);
+        if (!gamePin) return;
+
+        const game = await Game.findOne({ pin: gamePin });
+        if (!game) return;
+
+        // Ensure players array exists and is an array
+        if (!Array.isArray(game.players)) {
+          game.players = [];
+        }
+
+        // Find and remove the disconnected player
         const playerIndex = game.players.findIndex(p => p.socketId === socket.id);
-        
         if (playerIndex !== -1) {
           game.players.splice(playerIndex, 1);
-          
-          io.to(pin).emit('player-left', {
-            players: game.players
-          });
-          
-          console.log(`Player left game with PIN: ${pin}`);
+          await game.save();
+
+          // Notify remaining players
+          socket.to(gamePin).emit('player-left', socket.id);
+          socket.to(gamePin).emit('update-players', game.players);
         }
-        
-        if (socket.id === game.hostId) {
-          io.to(pin).emit('host-left');
-          activeGames.delete(pin);
-          console.log(`Host left game with PIN: ${pin}, game ended`);
+
+        // Remove from active games if exists
+        if (activeGames.has(gamePin)) {
+          const activeGame = activeGames.get(gamePin);
+          activeGame.players.delete(socket.id);
         }
+
+        console.log(`Player disconnected from game ${gamePin}`);
+      } catch (error) {
+        console.error('Disconnect error:', error);
       }
     });
   });
