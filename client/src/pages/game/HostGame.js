@@ -18,6 +18,7 @@ const HostGame = () => {
   const [showResults, setShowResults] = useState(false);
   const [gameState, setGameState] = useState("waiting");
   const [showCorrectAnswer, setShowCorrectAnswer] = useState(false);
+  const [questionIndex, setQuestionIndex] = useState(0);
 
   useEffect(() => {
     const initGame = async () => {
@@ -133,26 +134,36 @@ const HostGame = () => {
   }, [gameId]);
 
   const handleStartGame = () => {
-    if (socket && game) {
-      setGameState("playing");
-      socket.emit("start-game", {
-        pin: game.pin,
-        gameId: game._id,
-      });
-      sendQuestion(0);
-    }
+    if (!socket || !game || !game.quiz || game.quiz.questions.length === 0)
+      return;
+
+    setGameState("playing");
+    setQuestionIndex(0); // устанавливаем индекс 0
+    sendQuestion(0);
+
+    socket.emit("start-game", {
+      pin: game.pin,
+      gameId: game._id,
+    });
   };
 
   const sendQuestion = (index) => {
-    const question = game.quiz.questions[index];
-    if (!question) {
-      console.error("Question not found:", index);
+    if (
+      !game ||
+      !game.quiz ||
+      !game.quiz.questions ||
+      index >= game.quiz.questions.length
+    ) {
+      console.warn("Invalid question index or missing quiz data");
       return;
     }
 
-    console.log("Sending question:", question);
+    console.log("sendQuestion called with index:", index);
+    const question = game.quiz.questions[index];
+    if (!question) return;
 
     setCurrentQuestion({
+      index,
       number: index + 1,
       text: question.question,
       options: question.options,
@@ -168,7 +179,7 @@ const HostGame = () => {
         questionNumber: index + 1,
         totalQuestions: game.quiz.questions.length,
         text: question.question,
-        options: question.options.map((opt) => opt),
+        options: question.options,
         correctAnswer: question.correctAnswer,
       },
     });
@@ -177,15 +188,16 @@ const HostGame = () => {
   const handleNextQuestion = () => {
     setShowCorrectAnswer(false);
 
-    if (currentQuestion.number >= currentQuestion.totalQuestions) {
-      handleEndGame(); // End the game if it's the last question
+    const nextIndex = questionIndex + 1;
+
+    if (nextIndex >= game.quiz.questions.length) {
+      handleEndGame();
       return;
     }
 
-    const nextQuestionIndex = currentQuestion.number;
-    sendQuestion(nextQuestionIndex);
+    setQuestionIndex(nextIndex);
+    sendQuestion(nextIndex);
 
-    // Emit event to all players
     socket.emit("next-question", {
       pin: game.pin,
       gameId: game._id,
@@ -195,24 +207,24 @@ const HostGame = () => {
   const handleEndGame = () => {
     if (socket && game) {
       const finalResults = [...players].sort((a, b) => b.score - a.score);
-      
+
       // Emit end-game event with final results
-      socket.emit("end-game", { 
+      socket.emit("end-game", {
         pin: game.pin,
         results: finalResults,
-        gameId: game._id
+        gameId: game._id,
       });
-      
+
       // Update local state
       setGameState("finished");
       setShowResults(true);
-      
+
       // Navigate to results page
-      navigate(`/game/${gameId}/results`, { 
-        state: { 
+      navigate(`/game/${gameId}/results`, {
+        state: {
           players: finalResults,
-          quiz: game.quiz
-        }
+          quiz: game.quiz,
+        },
       });
     }
   };
@@ -230,11 +242,13 @@ const HostGame = () => {
   const renderQuestion = () => {
     if (!currentQuestion) return null;
 
-    const isLastQuestion = currentQuestion.number >= currentQuestion.totalQuestions;
-
+    const isLastQuestion = questionIndex === game.quiz.questions.length - 1;
+    console.log("dfghtrgddfgfgfg:", isLastQuestion);
     return (
       <div className="current-question">
-        <h2>Question {currentQuestion.number} of {currentQuestion.totalQuestions}</h2>
+        <h2>
+          Question {questionIndex + 1} of {game.quiz.questions.length}
+        </h2>
         <h3>{currentQuestion.text}</h3>
 
         <div className="answers-grid">
@@ -258,7 +272,9 @@ const HostGame = () => {
         </div>
 
         <button
-          className={`question-control-btn ${isLastQuestion ? "finish-btn" : ""}`}
+          className={`question-control-btn ${
+            isLastQuestion ? "finish-btn" : ""
+          }`}
           onClick={isLastQuestion ? handleEndGame : handleNextQuestion}
         >
           {isLastQuestion ? "🏁 Finish Quiz" : "Next Question →"}
