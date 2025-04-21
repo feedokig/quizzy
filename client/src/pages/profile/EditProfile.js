@@ -31,8 +31,8 @@ const EditProfile = () => {
   };
 
   return (
-    <div className="edit-profile-container">
-      <div className="card">
+    <div className="edit-profile-page">
+      <div className="edit-profile-card">
         <h2>Edit Profile</h2>
         <Formik
           initialValues={{

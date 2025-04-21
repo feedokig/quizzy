@@ -57,9 +57,8 @@ export function AuthProvider({ children }) {
     try {
       const res = await api.post('/api/auth/login', userData);
 
-      localStorage.setItem('token', res.data.token);
-      localStorage.setItem('userId', res.data.user.id);
-      setAuthToken(res.data.token);
+      localStorage.setItem('token', res.data.token); // Сохранение токена
+      setAuthToken(res.data.token); // Установка токена для axios
       setUser(res.data.user);
       setIsAuthenticated(true);
       setError(null);
@@ -73,8 +72,26 @@ export function AuthProvider({ children }) {
 
   // Update password
   const updatePassword = async (currentPassword, newPassword) => {
-    const res = await api.post('/api/auth/update-password', { currentPassword, newPassword });
-    return res.data;
+    try {
+      const token = localStorage.getItem('token'); // Получение токена из localStorage
+      if (!token) {
+        throw new Error('No token found. Please log in again.');
+      }
+
+      const res = await api.post(
+        '/api/auth/update-password',
+        { currentPassword, newPassword },
+        {
+          headers: {
+            Authorization: `Bearer ${token}`, // Передача токена
+          },
+        }
+      );
+
+      return res.data;
+    } catch (err) {
+      throw new Error(err.response?.data?.message || 'Failed to update password');
+    }
   };
 
   // Logout user

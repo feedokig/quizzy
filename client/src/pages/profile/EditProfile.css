@@ -1,34 +1,42 @@
-.edit-profile-container {
+html, body {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  background: linear-gradient(135deg, #6c5ce7, #00cec9);
+  font-family: Arial, sans-serif;
+}
+
+.edit-profile-page {
   display: flex;
   justify-content: center;
   align-items: center;
-  min-height: calc(100vh - 180px);
-  padding: 20px;
+  min-height: 100vh;
 }
 
-.card {
+.edit-profile-card {
   width: 100%;
   max-width: 450px;
   background: white;
   padding: 30px;
-  border-radius: 8px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  border-radius: 12px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+  text-align: center;
 }
 
-.card h2 {
-  text-align: center;
+.edit-profile-card h2 {
   margin-bottom: 20px;
   color: #6c5ce7;
 }
 
 .form-group {
   margin-bottom: 15px;
+  text-align: left;
 }
 
 .form-group label {
   display: block;
   margin-bottom: 5px;
-  font-weight: 500;
+  font-weight: bold;
 }
 
 .form-group input {
@@ -42,6 +50,22 @@
   color: #d63031;
   font-size: 14px;
   margin-top: 5px;
+}
+
+.btn-primary {
+  background: linear-gradient(135deg, #6c5ce7, #00cec9);
+  color: white;
+  padding: 10px 20px;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 16px;
+  font-weight: bold;
+  transition: background 0.3s ease;
+}
+
+.btn-primary:hover {
+  background: linear-gradient(135deg, #5a4bcf, #00b8b0);
 }
 
 .btn-block {

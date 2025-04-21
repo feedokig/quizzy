@@ -174,32 +174,40 @@ module.exports = (io) => {
       try {
         const game = await Game.findOne({ pin }).populate('quiz');
         if (!game) return;
-
+    
+        // Find player by socketId
         const player = game.players.find(p => p.socketId === socket.id);
         if (!player) return;
-
+    
         const currentQuestion = game.quiz.questions[game.currentQuestionIndex];
         const isCorrect = answerIndex === currentQuestion.correctAnswer;
-
+    
+        // Calculate points
+        const points = isCorrect ? 1000 : 0;
+        
+        // Update player score
         if (isCorrect) {
-          player.score += 1000;
+          player.score += points;
           await game.save();
         }
-
+    
         // Send result to player with correct answer
         socket.emit('answer-result', {
           correct: isCorrect,
-          points: isCorrect ? 1000 : 0,
+          points: points,
           correctAnswer: currentQuestion.correctAnswer
         });
-
-        // Update host view
+    
+        // Update host view with the updated player information
         io.to(pin).emit('player-answered', {
           playerId: socket.id,
           nickname: player.nickname,
           score: player.score,
           answerIndex
         });
+        
+        // After saving the game, emit updated players list to keep host view in sync
+        io.to(pin).emit('update-players', game.players);
       } catch (error) {
         console.error('Submit answer error:', error);
       }
@@ -235,48 +243,67 @@ module.exports = (io) => {
       io.to(pin).emit("question", { ...question, questionNumber });
     });
 
-    socket.on('submit-answer', async ({ pin, answerIndex, timeSpent, boosts }) => {
-      try {
-        const game = await Game.findOne({ pin }).populate('quiz');
-        if (!game || !game.isActive) return;
+    socket.on('submit-answer', async ({ pin, answerIndex, timeSpent = 0, boosts = [] }) => {
+  try {
+    const game = await Game.findOne({ pin }).populate('quiz');
+    if (!game || !game.isActive) return;
 
-        const currentQuestion = game.quiz.questions[game.currentQuestionIndex];
-        if (!currentQuestion) return;
+    const player = game.players.find(p => p.socketId === socket.id || p.id === socket.id);
+    if (!player) return;
 
-        const player = game.players.find(p => p.id === socket.id);
-        if (!player) return;
+    // Save the player's answer
+    player.lastAnswer = answerIndex;
 
-        const isCorrect = currentQuestion.options[answerIndex]?.correct;
-        let points = 0;
+    const currentQuestion = game.quiz.questions[game.currentQuestionIndex];
+    if (!currentQuestion) return;
 
-        if (isCorrect) {
-          points = Math.round(1000 * (1 - timeSpent/20));
-          
-          if (boosts.includes('double_points')) {
-            points *= 2;
-          }
+    const isCorrect = answerIndex === currentQuestion.correctAnswer;
+    let points = 0;
 
-          player.score += points;
-          player.correctAnswers = (player.correctAnswers || 0) + 1;
-        }
-
-        await game.save();
-
-        socket.emit('answer-submitted', {
-          correct: isCorrect,
-          points: points
-        });
-
-        io.to(game.pin).emit('player-answered', {
-          playerId: socket.id,
-          answerIndex,
-          totalAnswers: game.players.reduce((acc, p) => acc + (p.answer !== null ? 1 : 0), 0)
-        });
-
-      } catch (error) {
-        console.error('Submit answer error:', error);
+    if (isCorrect) {
+      // Базовая формула очков с учетом времени
+      points = Math.round(1000 * (1 - timeSpent / 20));
+      if (boosts.includes('double_points')) {
+        points *= 2;
       }
+
+      player.correctAnswers = (player.correctAnswers || 0) + 1;
+      player.score += points;
+    }
+
+    await game.save();
+
+    // Отправка результата игроку
+    socket.emit('answer-result', {
+      correct: isCorrect,
+      points,
+      correctAnswer: currentQuestion.correctAnswer
     });
+
+    // Подсчет всех ответивших игроков
+    const totalAnswered = game.players.filter(p => p.lastAnswer !== undefined).length;
+    const correctCount = game.players.filter(
+      p => p.lastAnswer === currentQuestion.correctAnswer
+    ).length;
+
+    // Обновление состояния игры у ведущего (хоста)
+    io.to(pin).emit('player-answered', {
+      playerId: socket.id,
+      nickname: player.nickname,
+      score: player.score,
+      answerIndex: answerIndex,
+      totalAnswered,
+      correctCount,
+    });
+
+    // Обновление всех игроков
+    io.to(pin).emit('update-players', game.players);
+
+  } catch (error) {
+    console.error('Submit answer error:', error);
+  }
+});
+
 
     socket.on("use-boost", async ({ pin, playerId, boostType }) => {
       try {

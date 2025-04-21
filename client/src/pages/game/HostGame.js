@@ -96,18 +96,43 @@ const HostGame = () => {
           setPlayers((prev) =>
             prev.map((player) =>
               player.id === playerId
-                ? { ...player, score: score, lastAnswer: answerIndex } // Update score directly
+                ? {
+                    ...player,
+                    score: score,
+                    lastAnswer: answerIndex, // Make sure this is being set correctly
+                  }
                 : player
             )
           );
 
+          // Reset lastAnswer when moving to next question
+          const clearAnswers = () => {
+            setPlayers((prev) =>
+              prev.map((player) => ({
+                ...player,
+                lastAnswer: null
+              }))
+            );
+          };
+
           // Show correct answer after a delay
-          setTimeout(() => setShowCorrectAnswer(true), 2000);
+          setTimeout(() => {
+            setShowCorrectAnswer(true);
+          }, 2000);
         });
 
+        // Add this to clear answers when receiving new question
         newSocket.on("question", (questionData) => {
           setCurrentQuestion(questionData);
           setShowResults(false);
+          setShowCorrectAnswer(false);
+          // Clear previous answers when new question is received
+          setPlayers((prev) =>
+            prev.map((player) => ({
+              ...player,
+              lastAnswer: null
+            }))
+          );
         });
 
         newSocket.on("error", (error) => {
@@ -134,34 +159,30 @@ const HostGame = () => {
   }, [gameId]);
 
   const handleStartGame = () => {
-    if (!socket || !game || !game.quiz || game.quiz.questions.length === 0)
-      return;
-
+    if (!socket || !game || !game.quiz || game.quiz.questions.length === 0) return;
+  
     setGameState("playing");
     setQuestionIndex(0); // устанавливаем индекс 0
     sendQuestion(0);
-
+  
     socket.emit("start-game", {
       pin: game.pin,
       gameId: game._id,
     });
   };
+  
+  
 
   const sendQuestion = (index) => {
-    if (
-      !game ||
-      !game.quiz ||
-      !game.quiz.questions ||
-      index >= game.quiz.questions.length
-    ) {
+    if (!game || !game.quiz || !game.quiz.questions || index >= game.quiz.questions.length) {
       console.warn("Invalid question index or missing quiz data");
       return;
     }
-
+  
     console.log("sendQuestion called with index:", index);
     const question = game.quiz.questions[index];
     if (!question) return;
-
+  
     setCurrentQuestion({
       index,
       number: index + 1,
@@ -170,9 +191,10 @@ const HostGame = () => {
       correctAnswer: question.correctAnswer,
       totalQuestions: game.quiz.questions.length,
     });
-
+    
+  
     setShowResults(false);
-
+  
     socket.emit("new-question", {
       pin: game.pin,
       question: {
@@ -184,26 +206,26 @@ const HostGame = () => {
       },
     });
   };
-
+  
   const handleNextQuestion = () => {
     setShowCorrectAnswer(false);
-
+  
     const nextIndex = questionIndex + 1;
-
+  
     if (nextIndex >= game.quiz.questions.length) {
       handleEndGame();
       return;
     }
-
+  
     setQuestionIndex(nextIndex);
     sendQuestion(nextIndex);
-
+  
     socket.emit("next-question", {
       pin: game.pin,
       gameId: game._id,
     });
   };
-
+  
   const handleEndGame = () => {
     if (socket && game) {
       const finalResults = [...players].sort((a, b) => b.score - a.score);
@@ -241,40 +263,41 @@ const HostGame = () => {
 
   const renderQuestion = () => {
     if (!currentQuestion) return null;
-
+  
     const isLastQuestion = questionIndex === game.quiz.questions.length - 1;
-    console.log("dfghtrgddfgfgfg:", isLastQuestion);
+    
     return (
       <div className="current-question">
-        <h2>
-          Question {questionIndex + 1} of {game.quiz.questions.length}
-        </h2>
+        <h2>Question {questionIndex + 1} of {game.quiz.questions.length}</h2>
         <h3>{currentQuestion.text}</h3>
-
+  
         <div className="answers-grid">
-          {currentQuestion.options.map((option, index) => (
-            <div
-              key={index}
-              className={`answer-box answer-${index} ${
-                showCorrectAnswer && index === currentQuestion.correctAnswer
-                  ? "correct"
-                  : ""
-              }`}
-            >
-              <div className="answer-content">
-                <span className="answer-text">{option}</span>
-                <span className="answer-count">
-                  {players.filter((p) => p.lastAnswer === index).length}
-                </span>
+          {currentQuestion.options.map((option, index) => {
+            // Calculate number of players who chose this answer
+            const answerCount = players.filter(p => p.lastAnswer === index).length;
+            
+            return (
+              <div
+                key={index}
+                className={`answer-box answer-${index} ${
+                  showCorrectAnswer && index === currentQuestion.correctAnswer
+                    ? "correct"
+                    : ""
+                }`}
+              >
+                <div className="answer-content">
+                  <span className="answer-text">{option}</span>
+                  <span className="answer-count">
+                    {answerCount} {/* Display count of answers */}
+                  </span>
+                </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
-
+  
         <button
-          className={`question-control-btn ${
-            isLastQuestion ? "finish-btn" : ""
-          }`}
+          className={`question-control-btn ${isLastQuestion ? "finish-btn" : ""}`}
           onClick={isLastQuestion ? handleEndGame : handleNextQuestion}
         >
           {isLastQuestion ? "🏁 Finish Quiz" : "Next Question →"}
@@ -282,7 +305,7 @@ const HostGame = () => {
       </div>
     );
   };
-
+  
   const renderFinalResults = () => (
     <div className="final-results">
       <h1>🏆 Quiz Over – Final Rankings</h1>
@@ -369,7 +392,7 @@ const HostGame = () => {
                 <div className="player-info">
                   <span className="player-nickname">{player.nickname}</span>
                   <span className="player-score">
-                    Score: {player.score || 0}
+                    Score: {player.score?.toLocaleString() || 0}
                   </span>
                 </div>
                 {gameState === "waiting" && (

@@ -78,7 +78,7 @@ const PlayerGame = () => {
       {gameState === 'ended' ? (
         <div className="game-ended">
           <h2>Game Over</h2>
-          <p>Your final score: {score}</p>
+          <div className="final-score">Your final score: {score}</div>
         </div>
       ) : question ? (
         <>
@@ -86,7 +86,7 @@ const PlayerGame = () => {
             <div className="question-count">
               Question {question.questionNumber} of {question.totalQuestions}
             </div>
-            <div className="score">Score: {score}</div>
+            <div className="score-display">Your score: {score}</div>
           </div>
 
           <div className="question-container">
@@ -100,6 +100,7 @@ const PlayerGame = () => {
       ) : (
         <div className="waiting">
           <h2>Waiting for question...</h2>
+          {score > 0 && <div className="current-score">Current score: {score}</div>}
         </div>
       )}
     </div>
