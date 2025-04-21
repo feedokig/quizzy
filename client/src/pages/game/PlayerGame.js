@@ -1,7 +1,7 @@
 // pages/game/PlayerGame
 
 import React, { useState, useEffect } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
 import io from 'socket.io-client';
 import './PlayerGame.css';
 
@@ -14,6 +14,7 @@ const PlayerGame = () => {
   const [score, setScore] = useState(0);
   const [gameState, setGameState] = useState('playing');
   const nickname = localStorage.getItem('playerNickname');
+  const navigate = useNavigate();
 
   useEffect(() => {
     const newSocket = io('http://localhost:5000');
@@ -38,12 +39,24 @@ const PlayerGame = () => {
       setGameState('ended');
     });
 
+    newSocket.on('quiz:finished', (data) => {
+      console.log('Quiz finished event received:', data);
+      // Не передаем socket через navigate
+      navigate(`/game/${data.gameId}/wheel`, {
+        state: {
+          score,
+          pin: data.pin,
+          gameId: data.gameId
+        }
+      });
+    });
+
     const nickname = localStorage.getItem('playerNickname');
     console.log('Joining game:', { pin, nickname });
     newSocket.emit('player-join', { pin, nickname });
 
     return () => newSocket.disconnect();
-  }, [pin]);
+  }, [pin, navigate, score]);
 
   const handleAnswer = (index) => {
     if (selectedAnswer !== null || !question) return;

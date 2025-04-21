@@ -6,7 +6,6 @@ module.exports = (io) => {
   const activeGames = new Map();
 
   io.on('connection', (socket) => {
-    console.log('New client connected:', socket.id);
 
     socket.on('host-join', async ({ pin, gameId }) => {
       try {
@@ -268,6 +267,7 @@ module.exports = (io) => {
       }
 
       player.correctAnswers = (player.correctAnswers || 0) + 1;
+      
       player.score += points;
     }
 
@@ -333,25 +333,90 @@ module.exports = (io) => {
       }
     });
 
-    socket.on("spin-wheel", async ({ pin, playerId }) => {
+    socket.on('end-game', async ({ pin, results, gameId }) => {
+      try {
+        const game = await Game.findById(gameId);
+        if (!game) return;
+    
+        game.isActive = false;
+        game.results = results;
+        await game.save();
+    
+        // Оповещаем всех игроков о завершении викторины
+        io.to(pin).emit('quiz:finished', {
+          gameId,
+          pin
+        });
+    
+        console.log(`Game ${pin} has ended`);
+      } catch (error) {
+        console.error('End game error:', error);
+      }
+    });
+    
+    socket.on('wheel:spin', async ({ pin, playerId, multiplier }) => {
       try {
         const game = await Game.findOne({ pin });
         if (!game) return;
-
-        const player = game.players.find(p => p.id === playerId);
+    
+        // Найти игрока в игре
+        const player = game.players.find(p => p.socketId === socket.id || p.id === socket.id);
         if (!player) return;
-
-        const result = spinWheel();
-        const newScore = applyWheelResult(player.score, result);
+    
+        // Применить множитель к счету
+        const newScore = Math.round(player.score * multiplier);
         player.score = newScore;
         await game.save();
-
-        socket.emit("wheel-result", { result, newScore });
+    
+        // Отправить результат только этому игроку
+        socket.emit('wheel:result', {
+          newScore,
+          multiplier
+        });
+    
+        // Обновить список игроков для хоста
+        io.to(pin).emit('update-players', game.players);
+    
       } catch (error) {
-        console.error("Spin wheel error:", error);
+        console.error('Wheel spin error:', error);
       }
     });
 
+    socket.on('join-wheel', ({ pin, gameId }) => {
+      socket.join(`wheel_${pin}`);
+    });
+
+    socket.on('wheel-spin', async ({ pin, gameId, multiplier, currentScore }) => {
+      try {
+        const game = await Game.findById(gameId);
+        if (!game) return;
+
+        const player = game.players.find(p => p.socketId === socket.id);
+        if (!player) return;
+
+        // Применяем множитель к счету
+        const updatedScore = Math.round(currentScore * multiplier);
+        player.score = updatedScore;
+        await game.save();
+
+        // Отправляем обновленный счет обратно игроку
+        socket.emit('wheel-result', {
+          updatedScore,
+          multiplier
+        });
+
+      } catch (error) {
+        console.error('Wheel spin error:', error);
+      }
+    });
+    
+    // Обработка сигнала готовности игрока к просмотру результатов
+    socket.on('player:ready-for-results', ({ pin }) => {
+      // Игрок готов видеть результаты
+      // Здесь можно отслеживать, сколько игроков уже готовы
+      socket.emit('ready:acknowledged');
+    });
+    
     socket.on('disconnect', async () => {
       try {
         // Find the game this socket was connected to

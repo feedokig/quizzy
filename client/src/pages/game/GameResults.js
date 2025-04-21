@@ -1,21 +1,46 @@
 // pages/game/GameResults
 
-import React from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useEffect, useState } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
 import './GameResults.css';
 
-const GameResults = ({ players }) => {
+const GameResults = ({ players: propPlayers }) => {
   const navigate = useNavigate();
+  const location = useLocation();
+  const [players, setPlayers] = useState(propPlayers || location.state?.players || []);
+  
+  // Если результаты пришли из колеса фортуны для текущего игрока
+  useEffect(() => {
+    if (location.state?.finalScore) {
+      // Обновляем счет текущего игрока в локальном представлении (без отправки на сервер)
+      const playerNickname = localStorage.getItem('playerNickname');
+      if (playerNickname) {
+        setPlayers(prevPlayers => {
+          // Если игрок уже существует в списке - обновляем его счет
+          const updatedPlayers = [...prevPlayers];
+          const playerIndex = updatedPlayers.findIndex(p => p.nickname === playerNickname);
+          
+          if (playerIndex !== -1) {
+            updatedPlayers[playerIndex] = {
+              ...updatedPlayers[playerIndex],
+              score: location.state.finalScore
+            };
+          }
+          return updatedPlayers;
+        });
+      }
+    }
+  }, [location.state]);
+
+  // Sort players by score in descending order
   const sortedPlayers = [...players].sort((a, b) => b.score - a.score);
-  const topThree = sortedPlayers.slice(0, 3);
-  const rest = sortedPlayers.slice(3);
 
   return (
     <div className="game-results">
       <h1 className="results-title">🏆 Quiz Over – Final Rankings</h1>
 
       <div className="top-three">
-        {topThree.map((player, index) => {
+        {sortedPlayers.map((player, index) => {
           const medals = ['silver', 'gold', 'bronze'];
           const position = index === 1 ? 0 : index === 0 ? 1 : 2;
           
@@ -29,7 +54,7 @@ const GameResults = ({ players }) => {
         })}
       </div>
 
-      <div className="ranking-list">
+      {/* <div className="ranking-list">
         <ul>
           {rest.map((player, index) => (
             <li key={player.id}>
@@ -39,7 +64,7 @@ const GameResults = ({ players }) => {
             </li>
           ))}
         </ul>
-      </div>
+      </div> */}
 
       <button className="play-again" onClick={() => navigate('/dashboard')}>
         🔁 Back to Dashboard

@@ -22,6 +22,7 @@ import JoinGame from './pages/game/JoinGame';
 import PlayerGame from './pages/game/PlayerGame';
 import HostGame from './pages/game/HostGame';
 import GameResults from './pages/game/GameResults';
+import PostQuizWheel from './pages/game/PostQuizWheel';
 
 // Profile pages
 import EditProfile from './pages/profile/EditProfile';
@@ -89,7 +90,8 @@ function App() {
           <Route path="/play/:pin" element={<PlayerGame />} />
           <Route path="/game/join" element={<JoinGame />} />          
           <Route path="/results/:id" element={<GameResults />} />
-          
+          <Route path="/game/:pin/wheel" element={<PostQuizWheel />} />
+
           {/* Default route */}
           <Route path="*" element={<Navigate to="/" />} />
         </Routes>

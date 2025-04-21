@@ -229,28 +229,30 @@ const HostGame = () => {
   const handleEndGame = () => {
     if (socket && game) {
       const finalResults = [...players].sort((a, b) => b.score - a.score);
-
-      // Emit end-game event with final results
+  
+      // Эмитим событие окончания игры
       socket.emit("end-game", {
         pin: game.pin,
         results: finalResults,
         gameId: game._id,
       });
-
-      // Update local state
+  
+      // Обновляем локальное состояние
       setGameState("finished");
       setShowResults(true);
-
-      // Navigate to results page
-      navigate(`/game/${gameId}/results`, {
-        state: {
-          players: finalResults,
-          quiz: game.quiz,
-        },
-      });
+  
+      // Даем игрокам время на участие в колесе фортуны (около 15 секунд)
+      setTimeout(() => {
+        navigate(`/game/${gameId}/results`, {
+          state: {
+            players: finalResults,
+            quiz: game.quiz,
+          },
+        });
+      }, 15000);
     }
   };
-
+  
   const handleKickPlayer = (playerId) => {
     if (socket && game) {
       socket.emit("kick-player", {
