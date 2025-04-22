@@ -59,29 +59,18 @@ const HostGame = () => {
         });
 
         newSocket.on("update-players", (updatedPlayers) => {
-          console.log("Players updated:", updatedPlayers);
-          setPlayers(updatedPlayers);
+          console.log("Players updated from server:", updatedPlayers);
+          
+          // Убедимся, что updatedPlayers - это массив
+          if (Array.isArray(updatedPlayers)) {
+            // Используем состояние напрямую от сервера
+            setPlayers(updatedPlayers);
+          }
         });
 
-        newSocket.on("player-joined", (player) => {
-          console.log("Player joined:", player);
-          const newPlayer = {
-            id: player.id,
-            nickname:
-              player.nickname ||
-              localStorage.getItem("playerNickname") ||
-              "Anonymous",
-            score: 0,
-            lastAnswer: null,
-          };
-          setPlayers((prev) => {
-            // Check if player already exists
-            const exists = prev.some((p) => p.id === player.id);
-            if (!exists) {
-              return [...prev, newPlayer];
-            }
-            return prev;
-          });
+        newSocket.on("player-joined", ({ players }) => {
+          console.log("Players list updated:", players);
+          setPlayers(players);
         });
 
         newSocket.on("player-left", (playerId) => {
@@ -89,32 +78,40 @@ const HostGame = () => {
           setPlayers((prev) => prev.filter((p) => p.id !== playerId));
         });
 
-        // Update player scores properly
-        // Update player scores when answers are received
-        newSocket.on("player-answered", ({ playerId, score, answerIndex }) => {
-          console.log("Player answered:", { playerId, score, answerIndex });
-          setPlayers((prev) =>
-            prev.map((player) =>
-              player.id === playerId
-                ? {
-                    ...player,
-                    score: score,
-                    lastAnswer: answerIndex, // Make sure this is being set correctly
-                  }
-                : player
-            )
-          );
-
-          // Reset lastAnswer when moving to next question
-          const clearAnswers = () => {
-            setPlayers((prev) =>
-              prev.map((player) => ({
-                ...player,
-                lastAnswer: null
-              }))
+        newSocket.on("player-answered", ({ playerId, nickname, score, answerIndex, totalAnswered, correctCount }) => {
+          console.log("Player answered:", { playerId, nickname, score, answerIndex });
+          
+          setPlayers((prev) => {
+            // Find the player by ID or nickname
+            const playerIndex = prev.findIndex(p => 
+              p.id === playerId || p.socketId === playerId || (p.nickname === nickname && nickname)
             );
-          };
-
+            
+            // If found, update score and last answer
+            if (playerIndex !== -1) {
+              const updatedPlayers = [...prev];
+              updatedPlayers[playerIndex] = {
+                ...updatedPlayers[playerIndex],
+                score: score, // Используем общий счет от сервера
+                lastAnswer: answerIndex
+              };
+              return updatedPlayers;
+            } 
+            // If not found (shouldn't normally happen), add player
+            else {
+              return [
+                ...prev,
+                {
+                  id: playerId,
+                  socketId: playerId,
+                  nickname: nickname || "Anonymous",
+                  score: score,
+                  lastAnswer: answerIndex
+                }
+              ];
+            }
+          });
+  
           // Show correct answer after a delay
           setTimeout(() => {
             setShowCorrectAnswer(true);
@@ -130,7 +127,7 @@ const HostGame = () => {
           setPlayers((prev) =>
             prev.map((player) => ({
               ...player,
-              lastAnswer: null
+              lastAnswer: null,
             }))
           );
         });
@@ -159,30 +156,34 @@ const HostGame = () => {
   }, [gameId]);
 
   const handleStartGame = () => {
-    if (!socket || !game || !game.quiz || game.quiz.questions.length === 0) return;
-  
+    if (!socket || !game || !game.quiz || game.quiz.questions.length === 0)
+      return;
+
     setGameState("playing");
     setQuestionIndex(0); // устанавливаем индекс 0
     sendQuestion(0);
-  
+
     socket.emit("start-game", {
       pin: game.pin,
       gameId: game._id,
     });
   };
-  
-  
 
   const sendQuestion = (index) => {
-    if (!game || !game.quiz || !game.quiz.questions || index >= game.quiz.questions.length) {
+    if (
+      !game ||
+      !game.quiz ||
+      !game.quiz.questions ||
+      index >= game.quiz.questions.length
+    ) {
       console.warn("Invalid question index or missing quiz data");
       return;
     }
-  
+
     console.log("sendQuestion called with index:", index);
     const question = game.quiz.questions[index];
     if (!question) return;
-  
+
     setCurrentQuestion({
       index,
       number: index + 1,
@@ -191,10 +192,9 @@ const HostGame = () => {
       correctAnswer: question.correctAnswer,
       totalQuestions: game.quiz.questions.length,
     });
-    
-  
+
     setShowResults(false);
-  
+
     socket.emit("new-question", {
       pin: game.pin,
       question: {
@@ -206,53 +206,43 @@ const HostGame = () => {
       },
     });
   };
-  
+
   const handleNextQuestion = () => {
     setShowCorrectAnswer(false);
-  
+
     const nextIndex = questionIndex + 1;
-  
+
     if (nextIndex >= game.quiz.questions.length) {
       handleEndGame();
       return;
     }
-  
+
     setQuestionIndex(nextIndex);
     sendQuestion(nextIndex);
-  
+
     socket.emit("next-question", {
       pin: game.pin,
       gameId: game._id,
     });
   };
-  
+
   const handleEndGame = () => {
     if (socket && game) {
       const finalResults = [...players].sort((a, b) => b.score - a.score);
-  
-      // Эмитим событие окончания игры
+
+      // Emit end game event
       socket.emit("end-game", {
         pin: game.pin,
         results: finalResults,
         gameId: game._id,
       });
-  
-      // Обновляем локальное состояние
+
+      // Update local state
       setGameState("finished");
       setShowResults(true);
-  
-      // Даем игрокам время на участие в колесе фортуны (около 15 секунд)
-      setTimeout(() => {
-        navigate(`/game/${gameId}/results`, {
-          state: {
-            players: finalResults,
-            quiz: game.quiz,
-          },
-        });
-      }, 15000);
     }
   };
-  
+
   const handleKickPlayer = (playerId) => {
     if (socket && game) {
       socket.emit("kick-player", {
@@ -265,19 +255,23 @@ const HostGame = () => {
 
   const renderQuestion = () => {
     if (!currentQuestion) return null;
-  
+
     const isLastQuestion = questionIndex === game.quiz.questions.length - 1;
-    
+
     return (
       <div className="current-question">
-        <h2>Question {questionIndex + 1} of {game.quiz.questions.length}</h2>
+        <h2>
+          Question {questionIndex + 1} of {game.quiz.questions.length}
+        </h2>
         <h3>{currentQuestion.text}</h3>
-  
+
         <div className="answers-grid">
           {currentQuestion.options.map((option, index) => {
             // Calculate number of players who chose this answer
-            const answerCount = players.filter(p => p.lastAnswer === index).length;
-            
+            const answerCount = players.filter(
+              (p) => p.lastAnswer === index
+            ).length;
+
             return (
               <div
                 key={index}
@@ -297,9 +291,11 @@ const HostGame = () => {
             );
           })}
         </div>
-  
+
         <button
-          className={`question-control-btn ${isLastQuestion ? "finish-btn" : ""}`}
+          className={`question-control-btn ${
+            isLastQuestion ? "finish-btn" : ""
+          }`}
           onClick={isLastQuestion ? handleEndGame : handleNextQuestion}
         >
           {isLastQuestion ? "🏁 Finish Quiz" : "Next Question →"}
@@ -307,44 +303,75 @@ const HostGame = () => {
       </div>
     );
   };
-  
-  const renderFinalResults = () => (
-    <div className="final-results">
-      <h1>🏆 Quiz Over – Final Rankings</h1>
-      <div className="top-three">
-        {players
-          .sort((a, b) => b.score - a.score)
-          .slice(0, 3)
-          .map((player, index) => (
+
+  const renderFinalResults = () => {
+    // Удаляем возможные дубликаты игроков перед отображением
+    const uniquePlayers = [];
+    const playerMap = new Map();
+    
+    console.log("Current players state:", players);
+    
+    players.forEach(player => {
+      if (!player.nickname) return; // Пропускаем игроков без никнейма
+      
+      // Используем никнейм в качестве уникального идентификатора
+      if (!playerMap.has(player.nickname)) {
+        playerMap.set(player.nickname, player);
+        uniquePlayers.push(player);
+      } else {
+        // Если игрок с таким никнеймом уже существует, оставляем версию с наивысшим счетом
+        const existingPlayer = playerMap.get(player.nickname);
+        if ((player.score || 0) > (existingPlayer.score || 0)) {
+          playerMap.set(player.nickname, player);
+          // Заменяем в массиве
+          const index = uniquePlayers.findIndex(p => p.nickname === player.nickname);
+          if (index !== -1) {
+            uniquePlayers[index] = player;
+          }
+        }
+      }
+    });
+    
+    // Сортируем по убыванию очков
+    const sortedPlayers = uniquePlayers.sort((a, b) => (b.score || 0) - (a.score || 0));
+    console.log("Sorted unique players:", sortedPlayers);
+    
+    return (
+      <div className="final-results">
+        <h1>🏆 Quiz Over – Final Results</h1>
+        <p className="results-info">Players may be updating their scores with the Wheel of Fortune</p>
+        
+        <div className="top-three">
+          {sortedPlayers.slice(0, 3).map((player, index) => (
             <div
-              key={player.id}
+              key={player.id || player.socketId || index}
               className={`player-card ${["silver", "gold", "bronze"][index]}`}
             >
               <div className="player-avatar"></div>
               <div className="player-name">{player.nickname}</div>
-              <div className="player-score">{player.score} pts</div>
+              <div className="player-score">{player.score || 0} pts</div>
             </div>
           ))}
-      </div>
-      <div className="ranking-list">
-        <ul>
-          {players
-            .sort((a, b) => b.score - a.score)
-            .slice(3)
-            .map((player, index) => (
-              <li key={player.id}>
+        </div>
+        
+        <div className="ranking-list">
+          <ul>
+            {sortedPlayers.slice(3).map((player, index) => (
+              <li key={player.id || player.socketId || index}>
                 <span className="rank-number">{index + 4}</span>
                 <span className="rank-name">{player.nickname}</span>
-                <span className="rank-score">{player.score} pts</span>
+                <span className="rank-score">{player.score || 0} pts</span>
               </li>
             ))}
-        </ul>
+          </ul>
+        </div>
+        
+        <button className="play-again" onClick={() => navigate("/dashboard")}>
+          🔁 Back to Dashboard
+        </button>
       </div>
-      <button className="play-again" onClick={() => navigate("/dashboard")}>
-        🔁 Back to Dashboard
-      </button>
-    </div>
-  );
+    );
+  };
 
   if (loading) {
     return (
@@ -389,25 +416,50 @@ const HostGame = () => {
         <div className="players-panel">
           <h2>Players ({players.length})</h2>
           <div className="players-list">
-            {players.map((player) => (
-              <div key={player.id} className="player-item">
-                <div className="player-info">
-                  <span className="player-nickname">{player.nickname}</span>
-                  <span className="player-score">
-                    Score: {player.score?.toLocaleString() || 0}
-                  </span>
+            {(() => {
+              // Дедупликация игроков по никнейму
+              const uniquePlayers = [];
+              const playerNicknames = new Set();
+
+              players.forEach((player) => {
+                if (!playerNicknames.has(player.nickname)) {
+                  playerNicknames.add(player.nickname);
+                  uniquePlayers.push(player);
+                } else {
+                  // Если игрок с таким никнеймом уже существует, обновляем очки
+                  const existingPlayer = uniquePlayers.find(
+                    (p) => p.nickname === player.nickname
+                  );
+                  if (existingPlayer && player.score > existingPlayer.score) {
+                    existingPlayer.score = player.score;
+                    existingPlayer.lastAnswer = player.lastAnswer;
+                  }
+                }
+              });
+
+              // Возвращаем отрисовку уникальных игроков
+              return uniquePlayers.map((player) => (
+                <div key={player.id || player.socketId} className="player-item">
+                  <div className="player-info">
+                    <span className="player-nickname">{player.nickname}</span>
+                    <span className="player-score">
+                      Score: {player.score?.toLocaleString() || 0}
+                    </span>
+                  </div>
+                  {gameState === "waiting" && (
+                    <button
+                      className="kick-button"
+                      onClick={() =>
+                        handleKickPlayer(player.id || player.socketId)
+                      }
+                      aria-label={`Kick ${player.nickname}`}
+                    >
+                      ✕
+                    </button>
+                  )}
                 </div>
-                {gameState === "waiting" && (
-                  <button
-                    className="kick-button"
-                    onClick={() => handleKickPlayer(player.id)}
-                    aria-label={`Kick ${player.nickname}`}
-                  >
-                    ✕
-                  </button>
-                )}
-              </div>
-            ))}
+              ));
+            })()}
           </div>
           {players.length === 0 && (
             <p className="no-players">Waiting for players to join...</p>

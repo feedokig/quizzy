@@ -9,44 +9,71 @@ const PostQuizWheel = () => {
   const navigate = useNavigate();
   const [socket, setSocket] = useState(null);
   const { score, pin, gameId } = location.state || {};
-  const [finalScore, setFinalScore] = useState(score);
+  const [currentScore, setCurrentScore] = useState(score);
+  const [finalScore, setFinalScore] = useState(null);
   const [hasSpun, setHasSpun] = useState(false);
+  const [multiplier, setMultiplier] = useState(null);
+  const nickname = localStorage.getItem('playerNickname');
 
   useEffect(() => {
-    // Создаем новое подключение для страницы с колесом
+    if (!pin || !gameId) return;
+
+    // Create new connection for the wheel page
     const newSocket = io('http://localhost:5000');
     setSocket(newSocket);
 
-    newSocket.emit('join-wheel', { pin, gameId });
+    // Join the wheel room
+    newSocket.emit('join-wheel', { pin, gameId, nickname });
 
-    newSocket.on('wheel-result', ({ updatedScore }) => {
+    // Listen for wheel result updates
+    newSocket.on('wheel-result', ({ updatedScore, multiplier }) => {
+      console.log('Received wheel result:', updatedScore, multiplier);
       setFinalScore(updatedScore);
-      // Даем время увидеть результат
-      setTimeout(() => {
-        navigate(`/game/${gameId}/results`, {
-          state: { finalScore: updatedScore }
-        });
-      }, 3000);
     });
 
     return () => newSocket.disconnect();
-  }, [pin, gameId, navigate]);
+  }, [pin, gameId, nickname]);
 
-  const handleSpin = async (multiplier) => {
+  const handleSpin = async (multiplierValue) => {
     setHasSpun(true);
+    setMultiplier(multiplierValue);
+    
     if (socket) {
+      // Calculate new score locally (for immediate feedback)
+      const newScore = Math.round(currentScore * multiplierValue);
+      setFinalScore(newScore);
+      
+      // Send to server for persistence and broadcast to host
       socket.emit('wheel-spin', {
         pin,
         gameId,
-        multiplier,
-        currentScore: score
+        multiplier: multiplierValue,
+        currentScore,
+        nickname
       });
     }
   };
 
   const handleSkip = () => {
+    // If user skips, we still need to inform the server
+    if (socket) {
+      socket.emit('wheel-skip', {
+        pin,
+        gameId,
+        nickname,
+        currentScore
+      });
+    }
+    
+    // Navigate to results with current score
     navigate(`/game/${gameId}/results`, {
-      state: { finalScore: score }
+      state: { finalScore: currentScore }
+    });
+  };
+
+  const goToResults = () => {
+    navigate(`/game/${gameId}/results`, {
+      state: { finalScore: finalScore || currentScore }
     });
   };
 
@@ -58,20 +85,12 @@ const PostQuizWheel = () => {
     <div className="post-quiz-wheel">
       <h1>🎡 Wheel of Fortune</h1>
       <div className="score-display">
-        Current Score: {score}
+        Current Score: {currentScore}
       </div>
 
       {!hasSpun ? (
         <div className="wheel-container">
-          <WheelOfFortune
-            options={[
-              { label: '🎉 +10%', value: 1.1 },
-              { label: '⭐ +5%', value: 1.05 },
-              { label: '😬 -5%', value: 0.95 },
-              { label: '💥 -10%', value: 0.9 }
-            ]}
-            onSpinEnd={handleSpin}
-          />
+          <WheelOfFortune onSpin={handleSpin} />
           <button 
             className="skip-button"
             onClick={handleSkip}
@@ -80,9 +99,22 @@ const PostQuizWheel = () => {
           </button>
         </div>
       ) : (
-        <div className="result-display">
-          <h2>Your final score will appear soon...</h2>
-          <div className="loader">🎲</div>
+        <div className="result-section">
+          <h2>Spin Result</h2>
+          <div className="score-change">
+            <span className="old-score">{currentScore}</span>
+            <span className="arrow">➡️</span>
+            <span className="new-score">{finalScore}</span>
+          </div>
+          <div className="multiplier-info">
+            Multiplier: {multiplier < 1 ? (multiplier - 1) * 100 + '%' : '+' + (multiplier - 1) * 100 + '%'}
+          </div>
+          <button 
+            className="continue-button"
+            onClick={goToResults}
+          >
+            Continue to Results ➡️
+          </button>
         </div>
       )}
     </div>

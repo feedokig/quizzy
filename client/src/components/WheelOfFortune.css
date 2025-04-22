@@ -8,69 +8,71 @@
 
 .wheel-container h3 {
   font-size: 1.2rem;
-  color: #2c3e50;
+  color: #2d3d4d;
   margin-bottom: 1rem;
 }
 
-.wheel {
+.wheel-wrapper {
   position: relative;
   width: 260px;
   height: 260px;
+  margin-bottom: 2rem;
+}
+
+.wheel {
+  position: absolute;
+  width: 100%;
+  height: 100%;
   border-radius: 50%;
-  background: linear-gradient(135deg, #f6d365 0%, #fda085 100%);
-  box-shadow: 0 0 15px rgba(0, 0, 0, 0.2);
+  box-shadow: 0 0 15px rgba(52, 51, 51, 0.2);
   display: flex;
   justify-content: center;
   align-items: center;
-  margin-bottom: 2rem;
   transform-origin: center;
   transition: transform 3s cubic-bezier(0.2, 0.8, 0.3, 1);
   overflow: hidden;
 }
 
-.wheel.spinning {
-  transform: rotate(720deg);
-}
-
-.wheel::before {
-  content: "";
+.wheel-pointer {
   position: absolute;
-  top: 50%;
-  right: -10px;
-  transform: translateY(-50%);
+  top: -20px;
+  left: 50%;
+  transform: translateX(-50%);
   width: 0;
   height: 0;
-  border-top: 15px solid transparent;
-  border-bottom: 15px solid transparent;
-  border-left: 25px solid #e74c3c;
-  z-index: 2;
+  border-left: 15px solid transparent;
+  border-right: 15px solid transparent;
+  border-top: 25px solid #e74c3c;
+  z-index: 10;
 }
 
 .wheel-section {
   position: absolute;
+  top: 0;
+  left: 0;
   width: 100%;
   height: 100%;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  font-size: 2.5rem;
-  transform-origin: center;
+  clip-path: polygon(50% 50%, 50% 0%, 100% 0%, 100% 50%);
+  transform-origin: bottom left;
 }
 
-.wheel-section:nth-child(1) {
-  transform: rotate(0deg);
+.wheel-content {
+  position: absolute;
+  top: 25px;
+  right: 25px;
+  transform: rotate(45deg);
+  text-align: center;
+  width: 70px;
 }
 
-.wheel-section:nth-child(2) {
-  transform: rotate(90deg);
+.prize-icon {
+  font-size: 2rem;
 }
 
-.wheel-section:nth-child(3) {
-  transform: rotate(180deg);
-}
-
-.wheel-section:nth-child(4) {
-  transform: rotate(270deg);
+.prize-text {
+  font-size: 1rem;
+  font-weight: bold;
+  margin-top: 5px;
 }
 
 .spin-button {
@@ -105,4 +107,10 @@
   background-color: #f8f9fa;
   border-radius: 10px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  animation: pulse 1s infinite alternate;
+}
+
+@keyframes pulse {
+  from { box-shadow: 0 0 10px rgba(231, 76, 60, 0.5); }
+  to { box-shadow: 0 0 20px rgba(231, 76, 60, 0.8); }
 }

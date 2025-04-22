@@ -29,11 +29,15 @@ const PlayerGame = () => {
 
     newSocket.on('answer-result', (result) => {
       console.log('Answer result:', result);
-      if (result.points) {
-        setScore(prev => prev + result.points);
+      if (result.totalScore) {
+          // Используем общий счет вместо добавления очков
+          setScore(result.totalScore);
+      } else if (result.points) {
+          // Обратная совместимость
+          setScore(prev => prev + result.points);
       }
       setCorrectAnswer(result.correctAnswer);
-    });
+  });
 
     newSocket.on('game-ended', () => {
       setGameState('ended');

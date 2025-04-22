@@ -1,55 +1,71 @@
-/* JoinGame.css */
 .join-game-container {
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    height: 100vh;
-    background: #f1f1f1;
-  }
-  
-  .game-form {
-    background-color: #ffffff;
-    padding: 40px;
-    border-radius: 10px;
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-    width: 100%;
-    max-width: 400px;
-    text-align: center;
-  }
-  
-  input {
-    width: 100%;
-    padding: 15px;
-    margin-bottom: 20px;
-    font-size: 18px;
-    border: 2px solid #7F00FF;
-    border-radius: 5px;
-    outline: none;
-    transition: border-color 0.3s ease;
-  }
-  
-  input:focus {
-    border-color: #E100FF;
-  }
-  
-  button {
-    width: 100%;
-    padding: 15px;
-    background-color: #7F00FF;
-    color: white;
-    font-size: 18px;
-    border: none;
-    border-radius: 5px;
-    cursor: pointer;
-    transition: background-color 0.3s ease;
-  }
-  
-  button:hover {
-    background-color: #E100FF;
-  }
-  
-  .error {
-    color: red;
-    font-size: 14px;
-  }
-  
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 100vh;
+  background: linear-gradient(135deg, #1e3c72, #2a5298);
+}
+
+.join-game-form {
+  background: rgba(255, 255, 255, 0.1);
+  padding: 40px;
+  border-radius: 20px;
+  backdrop-filter: blur(12px);
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.2);
+  width: 100%;
+  max-width: 400px;
+  text-align: center;
+  color: white;
+}
+
+.join-game-form h1 {
+  margin-bottom: 30px;
+  font-size: 2rem;
+  color: #ffffff;
+  text-shadow: 1px 1px 4px #000;
+}
+
+input {
+  width: 100%;
+  padding: 15px;
+  margin-bottom: 20px;
+  font-size: 16px;
+  border: none;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.2);
+  color: white;
+  outline: none;
+  backdrop-filter: blur(4px);
+  transition: box-shadow 0.3s;
+}
+
+input::placeholder {
+  color: #ddd;
+}
+
+input:focus {
+  box-shadow: 0 0 0 2px #00d2ff;
+}
+
+button {
+  width: 100%;
+  padding: 15px;
+  background: linear-gradient(90deg, #00d2ff, #3a7bd5);
+  color: white;
+  font-size: 16px;
+  border: none;
+  border-radius: 10px;
+  font-weight: bold;
+  cursor: pointer;
+  transition: background 0.3s ease;
+}
+
+button:hover {
+  background: linear-gradient(90deg, #3a7bd5, #00d2ff);
+}
+
+.error-message {
+  color: #ff6b6b;
+  margin-bottom: 20px;
+  font-size: 14px;
+}
