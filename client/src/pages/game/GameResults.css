@@ -1,82 +1,162 @@
 .game-results {
-    font-family: 'Rubik', sans-serif;
-    background: linear-gradient(145deg, #4b6cb7, #182848);
-    color: #fff;
-    min-height: 100vh;
-    padding: 2rem;
-    display: flex;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  background: linear-gradient(135deg, #1e3c72, #6e48aa);
+  color: white;
+  min-height: 100vh;
+  padding: 40px 20px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.game-results h1 {
+  font-size: 2.8rem;
+  margin-bottom: 30px;
+  text-align: center;
+  color: #ffffff;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+  letter-spacing: 0.5px;
+}
+
+.top-three {
+  display: flex;
+  gap: 2rem;
+  margin-bottom: 3rem;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+.player-card {
+  background: rgba(255, 255, 255, 0.18);
+  padding: 30px;
+  border-radius: 20px;
+  text-align: center;
+  width: 200px;
+  position: relative;
+  box-shadow: 0 10px 35px rgba(0, 0, 0, 0.3);
+  backdrop-filter: blur(15px);
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.player-card:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 15px 40px rgba(0, 0, 0, 0.4);
+}
+
+.player-card.gold { 
+  border: 3px solid gold; 
+  box-shadow: 0 10px 35px rgba(255, 215, 0, 0.3);
+}
+
+.player-card.silver { 
+  border: 3px solid silver; 
+  box-shadow: 0 10px 35px rgba(192, 192, 192, 0.3);
+}
+
+.player-card.bronze { 
+  border: 3px solid #cd7f32; 
+  box-shadow: 0 10px 35px rgba(205, 127, 50, 0.3);
+}
+
+.player-avatar {
+  width: 100px;
+  height: 100px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.25);
+  margin: 0 auto 1.5rem;
+  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 2.5rem;
+  font-weight: bold;
+  color: white;
+}
+
+.ranking-list {
+  max-width: 700px;
+  width: 100%;
+  background: rgba(255, 255, 255, 0.1);
+  padding: 30px;
+  border-radius: 20px;
+  backdrop-filter: blur(10px);
+  box-shadow: 0 10px 35px rgba(0, 0, 0, 0.25);
+  margin-top: 2rem;
+}
+
+.ranking-list h2 {
+  margin-bottom: 20px;
+  font-size: 1.5rem;
+  color: #ffffff;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+  font-weight: 500;
+  text-align: center;
+}
+
+.ranking-list ul {
+  list-style: none;
+  padding: 0;
+}
+
+.ranking-list li {
+  background: rgba(255, 255, 255, 0.18);
+  border-radius: 15px;
+  padding: 15px 20px;
+  margin: 15px 0;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+  transition: transform 0.2s ease;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.ranking-list li:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15);
+}
+
+.play-again {
+  margin-top: 3rem;
+  padding: 15px 30px;
+  font-size: 1.2rem;
+  background: linear-gradient(90deg, #4cccff, #7c5cff);
+  color: white;
+  border: none;
+  border-radius: 12px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  font-weight: bold;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+}
+
+.play-again:hover {
+  background: linear-gradient(90deg, #7c5cff, #4cccff);
+  transform: translateY(-3px);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.35);
+}
+
+.play-again:active {
+  transform: translateY(1px);
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+}
+
+/* Responsive styles */
+@media (max-width: 768px) {
+  .top-three {
     flex-direction: column;
     align-items: center;
-  }
-  
-  .game-results h1 {
-    font-size: 3rem;
-    margin-bottom: 1rem;
-    text-align: center;
-  }
-  
-  .top-three {
-    display: flex;
-    gap: 2rem;
-    margin-bottom: 3rem;
-    justify-content: center;
-    flex-wrap: wrap;
+    gap: 1.5rem;
   }
   
   .player-card {
-    background: rgba(255, 255, 255, 0.1);
-    border-radius: 20px;
-    padding: 1.5rem;
-    text-align: center;
-    width: 160px;
-    position: relative;
-    box-shadow: 0 0 15px rgba(255, 255, 255, 0.1);
+    width: 90%;
+    max-width: 280px;
+    padding: 20px;
   }
   
-  .player-card.gold { border: 3px solid gold; }
-  .player-card.silver { border: 3px solid silver; }
-  .player-card.bronze { border: 3px solid #cd7f32; }
-  
-  .player-avatar {
-    width: 80px;
-    height: 80px;
-    border-radius: 50%;
-    background: #ccc;
-    margin: 0 auto 1rem;
+  .game-results h1 {
+    font-size: 2rem;
   }
-  
-  .ranking-list {
-    max-width: 600px;
-    width: 100%;
-  }
-  
-  .ranking-list ul {
-    list-style: none;
-    padding: 0;
-  }
-  
-  .ranking-list li {
-    background: rgba(255, 255, 255, 0.05);
-    border-radius: 12px;
-    padding: 1rem;
-    margin: 0.5rem 0;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-  }
-  
-  .play-again {
-    margin-top: 3rem;
-    padding: 1rem 2rem;
-    font-size: 1.2rem;
-    background: #00d8ff;
-    color: #000;
-    border: none;
-    border-radius: 12px;
-    cursor: pointer;
-    transition: 0.3s ease;
-  }
-  
-  .play-again:hover {
-    background: #00b7e6;
-  }
+}

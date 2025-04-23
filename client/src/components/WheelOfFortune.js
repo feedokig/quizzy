@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useRef } from 'react';
 import './WheelOfFortune.css';
 
 const WheelOfFortune = ({ onSpin }) => {
@@ -8,15 +8,18 @@ const WheelOfFortune = ({ onSpin }) => {
   const spinTimeoutRef = useRef(null);
   const wheelRef = useRef(null);
 
+  // Призы с четко видимыми модификаторами
   const prizes = [
-    { icon: '🎉', value: 1.1, text: '+10%', color: '#f6d365' },
-    { icon: '⭐', value: 1.05, text: '+5%', color: '#fda085' },
-    { icon: '😬', value: 0.95, text: '-5%', color: '#a8e063' },
-    { icon: '💥', value: 0.9, text: '-10%', color: '#e74c3c' }
+    { icon: '🎉', value: 1.2, text: '+20%', color: '#FF9900' },
+    { icon: '⭐', value: 1.1, text: '+10%', color: '#2196F3' },
+    { icon: '💫', value: 1.05, text: '+5%', color: '#4CAF50' }, 
+    { icon: '🔥', value: 0.95, text: '-5%', color: '#E91E63' },
+    { icon: '💥', value: 0.9, text: '-10%', color: '#F44336' },
+    { icon: '🌟', value: 0.85, text: '-15%', color: '#9C27B0' }
   ];
 
-  // Clean up timeout on unmount
-  useEffect(() => {
+  // Очистка таймаута при размонтировании
+  React.useEffect(() => {
     return () => {
       if (spinTimeoutRef.current) {
         clearTimeout(spinTimeoutRef.current);
@@ -29,77 +32,90 @@ const WheelOfFortune = ({ onSpin }) => {
     
     setIsSpinning(true);
     
-    // Calculate random prize
+    // Убираем воспроизведение звука, которое вызывает ошибку
+    
+    // Вычисляем случайный приз
     const randomIndex = Math.floor(Math.random() * prizes.length);
     const randomPrize = prizes[randomIndex];
     
-    // Calculate rotation to land on the selected prize
-    // Each segment is 90 degrees (360/4), so we calculate the rotation to land 
-    // precisely at the selected segment plus some extra rotations for effect
+    // Вычисляем вращение для выбранного приза
     const baseAngle = 360 / prizes.length;
     const targetAngle = baseAngle * randomIndex;
-    const extraRotations = 3 * 360; // 3 full rotations for effect
     
-    // Final rotation needs to position the prize at the top pointer
-    // 90 degrees is the offset to place the pointer at top
-    const finalRotation = extraRotations + (360 - targetAngle - 90);
+    // 4-5 полных оборотов для эффекта
+    const extraRotations = (4 + Math.floor(Math.random() * 2)) * 360;
+    
+    // Финальное вращение должно позиционировать приз в указателе наверху
+    const finalRotation = extraRotations + (360 - targetAngle - (baseAngle / 2));
     
     setRotation(finalRotation);
     
-    // Save reference to timeout
+    // Длительность вращения
+    const spinDuration = 4000;
+    
+    // Сохраняем ссылку на таймаут
     spinTimeoutRef.current = setTimeout(() => {
       setResult(randomPrize);
       setIsSpinning(false);
       
-      // Call the provided handler with the result
+      // Вызываем обработчик с результатом
       if (onSpin && typeof onSpin === 'function') {
         onSpin(randomPrize.value);
       }
-    }, 3000);
+    }, spinDuration);
   };
-
+  
   return (
     <div className="wheel-container">
-      <h3>Spin to modify your score!</h3>
+      <h3>Испытайте удачу!</h3>
       <div className="wheel-wrapper">
+        {/* Указатель */}
         <div className="wheel-pointer"></div>
+        
+        {/* Колесо */}
         <div 
           ref={wheelRef}
           className={`wheel ${isSpinning ? 'spinning' : ''}`} 
-          style={{ transform: `rotate(${rotation}deg)` }}
+          style={{ 
+            transform: `rotate(${rotation}deg)`,
+            transition: isSpinning ? `transform ${4}s cubic-bezier(0.2, 0.8, 0.05, 1)` : 'none'
+          }}
         >
           {prizes.map((prize, index) => {
-            // Calculate rotation for each segment
-            const segmentRotation = (index * (360 / prizes.length));
+            const rotationAngle = (index * (360 / prizes.length));
             
             return (
               <div 
                 key={index} 
-                className="wheel-section"
+                className="wheel-sector"
                 style={{ 
-                  transform: `rotate(${segmentRotation}deg)`,
-                  backgroundColor: prize.color
+                  transform: `rotate(${rotationAngle}deg)`
                 }}
               >
-                <div className="wheel-content">
+                <div className="sector-content">
                   <div className="prize-icon">{prize.icon}</div>
                   <div className="prize-text">{prize.text}</div>
                 </div>
               </div>
             );
           })}
+          
+          {/* Центр колеса */}
+          <div className="wheel-center"></div>
         </div>
       </div>
+      
       <button 
         className="spin-button"
         onClick={handleSpin}
         disabled={isSpinning}
       >
-        {isSpinning ? 'Spinning...' : 'Spin!'}
+        {isSpinning ? 'Вращается...' : 'Крутить!'}
       </button>
+      
       {result && (
         <div className="result">
-          <p>You got: {result.icon} ({result.text})</p>
+          <p>Ваш выигрыш: <span className="result-highlight">{result.icon} {result.text}</span></p>
         </div>
       )}
     </div>

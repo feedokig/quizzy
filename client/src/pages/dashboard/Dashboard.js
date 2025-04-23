@@ -107,7 +107,6 @@ const Dashboard = () => {
                 <p>{quiz.description}</p>
                 <div className="quiz-meta">
                   <span>{quiz.questions.length} questions</span>
-                  <span>Time limit: {quiz.timeLimit} seconds</span>
                   <span>Created: {new Date(quiz.createdAt).toLocaleDateString()}</span>
                 </div>
               </div>
