@@ -43,7 +43,10 @@ const GameResults = ({ players: propPlayers }) => {
   }, [location.state]);
 
   // Sort players by score in descending order
-  const sortedPlayers = [...players].sort((a, b) => b.score - a.score);
+  // This will re-sort whenever the players state changes
+  const sortedPlayers = React.useMemo(() => {
+    return [...players].sort((a, b) => b.score - a.score);
+  }, [players]);
 
   return (
     <div className="game-results">

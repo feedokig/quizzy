@@ -1,8 +1,9 @@
 // pages/game/HostGame
 import React, { useState, useEffect } from "react";
 import { useParams, useLocation, useNavigate } from "react-router-dom";
-import io from "socket.io-client";
 import gameService from "../../services/gameService";
+import socketService from "../../services/socketService"; // Import the new socket service
+import AnswerHistoryModal from "../../components/AnswerHistoryModal";
 import "./HostGame.css";
 
 const HostGame = () => {
@@ -13,12 +14,16 @@ const HostGame = () => {
   const [loading, setLoading] = useState(!location.state?.game);
   const [error, setError] = useState("");
   const [players, setPlayers] = useState([]);
-  const [socket, setSocket] = useState(null);
   const [currentQuestion, setCurrentQuestion] = useState(null);
   const [showResults, setShowResults] = useState(false);
   const [gameState, setGameState] = useState("waiting");
   const [showCorrectAnswer, setShowCorrectAnswer] = useState(false);
   const [questionIndex, setQuestionIndex] = useState(0);
+  
+  // State for the answer history modal
+  const [showAnswerHistoryModal, setShowAnswerHistoryModal] = useState(false);
+  const [answerHistory, setAnswerHistory] = useState([]);
+  const [allPlayersAnswered, setAllPlayersAnswered] = useState(false);
 
   useEffect(() => {
     const initGame = async () => {
@@ -27,17 +32,17 @@ const HostGame = () => {
         setPlayers([]);
         setLoading(true);
         const hostId = localStorage.getItem("userId");
-
+  
         if (!hostId) {
           throw new Error("User not authenticated");
         }
-
+  
         let gameData = game;
-
+  
         if (!gameData) {
           gameData = await gameService.getGame(gameId);
           console.log("Loaded game data:", gameData);
-
+  
           if (!gameData || !gameData.pin) {
             throw new Error("Invalid game data received");
           }
@@ -47,39 +52,32 @@ const HostGame = () => {
           }
           setGame(gameData);
         }
-
-        const newSocket = io("http://localhost:5000", {
-          transports: ["websocket"],
-        });
-
-        newSocket.emit("host-join", {
-          pin: gameData.pin,
-          gameId: gameData._id,
-          hostId,
-        });
-
-        newSocket.on("update-players", (updatedPlayers) => {
+  
+        // Connect to socket
+        const socket = socketService.connect();
+  
+        // Register event listeners
+        socketService.on("updatePlayers", (updatedPlayers) => {
           console.log("Players updated from server:", updatedPlayers);
           
-          // Убедимся, что updatedPlayers - это массив
+          // Make sure updatedPlayers is an array
           if (Array.isArray(updatedPlayers)) {
-            // Используем состояние напрямую от сервера
             setPlayers(updatedPlayers);
           }
         });
-
-        newSocket.on("player-joined", ({ players }) => {
+  
+        socketService.on("onPlayerJoined", ({ players }) => {
           console.log("Players list updated:", players);
           setPlayers(players);
         });
-
-        newSocket.on("player-left", (playerId) => {
+  
+        socketService.on("onPlayerLeft", (playerId) => {
           console.log("Player left:", playerId);
           setPlayers((prev) => prev.filter((p) => p.id !== playerId));
         });
-
-        newSocket.on("player-answered", ({ playerId, nickname, score, answerIndex, totalAnswered, correctCount }) => {
-          console.log("Player answered:", { playerId, nickname, score, answerIndex });
+  
+        socketService.on("onPlayerAnswered", ({ playerId, nickname, score, answerIndex, totalAnswered, correctCount, pointsAwarded }) => {
+          console.log("Player answered:", { playerId, nickname, score, answerIndex, pointsAwarded });
           
           setPlayers((prev) => {
             // Find the player by ID or nickname
@@ -92,8 +90,10 @@ const HostGame = () => {
               const updatedPlayers = [...prev];
               updatedPlayers[playerIndex] = {
                 ...updatedPlayers[playerIndex],
-                score: score, // Используем общий счет от сервера
-                lastAnswer: answerIndex
+                score: score,
+                lastAnswer: answerIndex, // Always store the answer index regardless of correctness
+                lastPoints: pointsAwarded || 0, // Store the points awarded for this answer
+                isAnswered: true // Add an explicit flag to track answered state
               };
               return updatedPlayers;
             } 
@@ -106,38 +106,65 @@ const HostGame = () => {
                   socketId: playerId,
                   nickname: nickname || "Anonymous",
                   score: score,
-                  lastAnswer: answerIndex
+                  lastAnswer: answerIndex,
+                  lastPoints: pointsAwarded || 0,
+                  isAnswered: true // Add an explicit flag to track answered state
                 }
               ];
             }
           });
-  
+        
+          // Check if all players have answered
+          if (totalAnswered === players.length && players.length > 0) {
+            setAllPlayersAnswered(true);
+            console.log("All players answered notification received");
+          }
+          
           // Show correct answer after a delay
           setTimeout(() => {
             setShowCorrectAnswer(true);
           }, 2000);
         });
-
+  
         // Add this to clear answers when receiving new question
-        newSocket.on("question", (questionData) => {
+        socketService.on("onQuestion", (questionData) => {
           setCurrentQuestion(questionData);
           setShowResults(false);
           setShowCorrectAnswer(false);
+          setAllPlayersAnswered(false);
           // Clear previous answers when new question is received
           setPlayers((prev) =>
             prev.map((player) => ({
               ...player,
               lastAnswer: null,
+              lastPoints: 0
             }))
           );
         });
-
-        newSocket.on("error", (error) => {
+  
+        // New listener for answer history data
+        socketService.on("onShowAnswerHistory", (historyData) => {
+          console.log("Received answer history from server:", historyData);
+          
+          // Ensure we're receiving valid data before setting it
+          if (Array.isArray(historyData) && historyData.length > 0) {
+            setAnswerHistory(historyData);
+            setShowAnswerHistoryModal(true);
+          } else {
+            console.warn("Received empty or invalid answer history data", historyData);
+            // Even with empty data, we'll still show the modal with current player data
+            setShowAnswerHistoryModal(true);
+          }
+        });
+  
+        socketService.on("onGameError", (error) => {
           console.error("Socket error:", error);
           setError(error.message || "Connection error");
         });
-
-        setSocket(newSocket);
+  
+        // Join the host to the game
+        socketService.hostJoin(gameData.pin, gameData._id, hostId);
+        
         setLoading(false);
       } catch (err) {
         console.error("Failed to initialize game:", err);
@@ -145,28 +172,40 @@ const HostGame = () => {
         setLoading(false);
       }
     };
-
+  
     initGame();
-
+  
     return () => {
-      if (socket) {
-        socket.disconnect();
-      }
+      // Clean up socket connection when component unmounts
+      socketService.disconnect();
     };
   }, [gameId]);
 
+  // Watch for changes to determine if all players have answered
+  useEffect(() => {
+    if (gameState === "playing" && currentQuestion && players.length > 0) {
+      const playersAnswered = players.filter(p => 
+        typeof p.lastAnswer === 'number' || 
+        p.answerIndex !== undefined || 
+        p.answer !== undefined
+      ).length;
+      
+      if (playersAnswered === players.length) {
+        setAllPlayersAnswered(true);
+        console.log("All players have answered:", players);
+      }
+    }
+  }, [players, currentQuestion, gameState]);
+
   const handleStartGame = () => {
-    if (!socket || !game || !game.quiz || game.quiz.questions.length === 0)
+    if (!game || !game.quiz || game.quiz.questions.length === 0)
       return;
 
     setGameState("playing");
     setQuestionIndex(0); // устанавливаем индекс 0
     sendQuestion(0);
 
-    socket.emit("start-game", {
-      pin: game.pin,
-      gameId: game._id,
-    });
+    socketService.startGame(game.pin, game._id);
   };
 
   const sendQuestion = (index) => {
@@ -195,20 +234,29 @@ const HostGame = () => {
 
     setShowResults(false);
 
-    socket.emit("new-question", {
-      pin: game.pin,
-      question: {
-        questionNumber: index + 1,
-        totalQuestions: game.quiz.questions.length,
-        text: question.question,
-        options: question.options,
-        correctAnswer: question.correctAnswer,
-      },
+    socketService.sendQuestion(game.pin, {
+      questionNumber: index + 1,
+      totalQuestions: game.quiz.questions.length,
+      text: question.question,
+      options: question.options,
+      correctAnswer: question.correctAnswer,
     });
   };
 
+  // Modified to show the modal before proceeding to next question
   const handleNextQuestion = () => {
+    // If we should show answer history first
+    if (allPlayersAnswered && !showAnswerHistoryModal) {
+      // Optionally request answer history from server if not already received
+      // socketService.requestAnswerHistory(game.pin, questionIndex);
+      setShowAnswerHistoryModal(true);
+      return;
+    }
+    
+    // Reset states before moving to next question
+    setShowAnswerHistoryModal(false);
     setShowCorrectAnswer(false);
+    setAllPlayersAnswered(false);
 
     const nextIndex = questionIndex + 1;
 
@@ -220,22 +268,15 @@ const HostGame = () => {
     setQuestionIndex(nextIndex);
     sendQuestion(nextIndex);
 
-    socket.emit("next-question", {
-      pin: game.pin,
-      gameId: game._id,
-    });
+    socketService.nextQuestion(game.pin, game._id);
   };
 
   const handleEndGame = () => {
-    if (socket && game) {
+    if (game) {
       const finalResults = [...players].sort((a, b) => b.score - a.score);
 
       // Emit end game event
-      socket.emit("end-game", {
-        pin: game.pin,
-        results: finalResults,
-        gameId: game._id,
-      });
+      socketService.endGame(game.pin, finalResults, game._id);
 
       // Update local state
       setGameState("finished");
@@ -244,34 +285,38 @@ const HostGame = () => {
   };
 
   const handleKickPlayer = (playerId) => {
-    if (socket && game) {
-      socket.emit("kick-player", {
-        pin: game.pin,
-        playerId,
-      });
+    if (game) {
+      socketService.kickPlayer(game.pin, playerId);
       setPlayers((prev) => prev.filter((p) => p.id !== playerId));
     }
   };
 
   const renderQuestion = () => {
     if (!currentQuestion) return null;
-
+  
     const isLastQuestion = questionIndex === game.quiz.questions.length - 1;
-
+    
+    // Check if all players have answered
+    const totalPlayersAnswered = players.filter(p => typeof p.lastAnswer === 'number').length;
+    const showAnswerCounts = totalPlayersAnswered === players.length && players.length > 0;
+  
     return (
       <div className="current-question">
         <h2>
           Question {questionIndex + 1} of {game.quiz.questions.length}
         </h2>
         <h3>{currentQuestion.text}</h3>
-
+  
         <div className="answers-grid">
           {currentQuestion.options.map((option, index) => {
-            // Calculate number of players who chose this answer
-            const answerCount = players.filter(
-              (p) => p.lastAnswer === index
-            ).length;
-
+            // Count players who chose this option
+            const playersForThisOption = players.filter(
+              (p) => typeof p.lastAnswer === 'number' && p.lastAnswer === index
+            );
+            
+            const answerCount = playersForThisOption.length;
+            const playerText = answerCount === 1 ? 'player' : 'players';
+  
             return (
               <div
                 key={index}
@@ -283,47 +328,50 @@ const HostGame = () => {
               >
                 <div className="answer-content">
                   <span className="answer-text">{option}</span>
-                  <span className="answer-count">
-                    {answerCount} {/* Display count of answers */}
-                  </span>
+                  {showAnswerCounts && (
+                    <span className="answer-count">
+                      {answerCount} {playerText}
+                    </span>
+                  )}
                 </div>
               </div>
             );
           })}
         </div>
-
+  
         <button
           className={`question-control-btn ${
             isLastQuestion ? "finish-btn" : ""
-          }`}
-          onClick={isLastQuestion ? handleEndGame : handleNextQuestion}
+          } ${allPlayersAnswered ? "all-answered" : ""}`}
+          onClick={handleNextQuestion}
         >
           {isLastQuestion ? "🏁 Finish Quiz" : "Next Question →"}
+          {allPlayersAnswered && <span className="indicator">All Answered!</span>}
         </button>
       </div>
     );
   };
 
   const renderFinalResults = () => {
-    // Удаляем возможные дубликаты игроков перед отображением
+    // Remove possible duplicate players before displaying
     const uniquePlayers = [];
     const playerMap = new Map();
     
-    console.log("Current players state:", players);
+    console.log("Current players state for final results:", players);
     
     players.forEach(player => {
-      if (!player.nickname) return; // Пропускаем игроков без никнейма
+      if (!player.nickname) return; // Skip players without nickname
       
-      // Используем никнейм в качестве уникального идентификатора
+      // Use nickname as unique identifier
       if (!playerMap.has(player.nickname)) {
         playerMap.set(player.nickname, player);
         uniquePlayers.push(player);
       } else {
-        // Если игрок с таким никнеймом уже существует, оставляем версию с наивысшим счетом
+        // If player with this nickname already exists, keep the version with highest score
         const existingPlayer = playerMap.get(player.nickname);
         if ((player.score || 0) > (existingPlayer.score || 0)) {
           playerMap.set(player.nickname, player);
-          // Заменяем в массиве
+          // Replace in array
           const index = uniquePlayers.findIndex(p => p.nickname === player.nickname);
           if (index !== -1) {
             uniquePlayers[index] = player;
@@ -332,9 +380,9 @@ const HostGame = () => {
       }
     });
     
-    // Сортируем по убыванию очков
+    // Sort by descending score
     const sortedPlayers = uniquePlayers.sort((a, b) => (b.score || 0) - (a.score || 0));
-    console.log("Sorted unique players:", sortedPlayers);
+    console.log("Sorted unique players for final results:", sortedPlayers);
     
     return (
       <div className="final-results">
@@ -417,7 +465,7 @@ const HostGame = () => {
           <h2>Players ({players.length})</h2>
           <div className="players-list">
             {(() => {
-              // Дедупликация игроков по никнейму
+              // Deduplicate players by nickname
               const uniquePlayers = [];
               const playerNicknames = new Set();
 
@@ -426,18 +474,19 @@ const HostGame = () => {
                   playerNicknames.add(player.nickname);
                   uniquePlayers.push(player);
                 } else {
-                  // Если игрок с таким никнеймом уже существует, обновляем очки
+                  // If player with this nickname already exists, update score
                   const existingPlayer = uniquePlayers.find(
                     (p) => p.nickname === player.nickname
                   );
                   if (existingPlayer && player.score > existingPlayer.score) {
                     existingPlayer.score = player.score;
                     existingPlayer.lastAnswer = player.lastAnswer;
+                    existingPlayer.lastPoints = player.lastPoints;
                   }
                 }
               });
 
-              // Возвращаем отрисовку уникальных игроков
+              // Return unique players
               return uniquePlayers.map((player) => (
                 <div key={player.id || player.socketId} className="player-item">
                   <div className="player-info">
@@ -485,6 +534,14 @@ const HostGame = () => {
           {gameState === "finished" && renderFinalResults()}
         </div>
       </div>
+
+      {/* Answer History Modal - now using players directly since we're already tracking answer data */}
+      <AnswerHistoryModal
+        isOpen={showAnswerHistoryModal}
+        onClose={handleNextQuestion}
+        players={players}
+        currentQuestion={currentQuestion}
+      />
     </div>
   );
 };
