@@ -46,6 +46,10 @@ const gameSchema = new mongoose.Schema({
   createdAt: {
     type: Date,
     default: Date.now
+  },
+  maxPlayers: {
+    type: Number,
+    default: 10
   }
 });
 

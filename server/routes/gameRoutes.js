@@ -93,4 +93,33 @@ router.get('/pin/:pin', async (req, res) => {
   }
 });
 
+router.get('/:pin/player/:nickname', async (req, res) => {
+  try {
+    const { pin, nickname } = req.params;
+    
+    // Find the game by PIN
+    const game = await Game.findOne({ pin });
+    
+    if (!game) {
+      return res.status(404).json({ error: 'Game not found' });
+    }
+    
+    // Find the player in the game's players array
+    const player = game.players.find(p => p.nickname === nickname);
+    
+    if (!player) {
+      return res.status(404).json({ error: 'Player not found in this game' });
+    }
+    
+    // Return the player data (including score)
+    res.json({
+      nickname: player.nickname,
+      score: player.score || 0
+    });
+  } catch (error) {
+    console.error('Get player error:', error);
+    res.status(500).json({ error: 'Failed to get player data' });
+  }
+});
+
 module.exports = router;

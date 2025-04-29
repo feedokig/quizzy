@@ -23,7 +23,7 @@ module.exports = (io) => {
       }
     });
 
-    socket.on("create-game", async ({ gameId, hostId }) => {
+    socket.on("create-game", async ({ gameId, hostId, maxPlayers = 10 }) => {
       try {
         const game = await Game.findById(gameId).populate("quiz");
 
@@ -34,18 +34,26 @@ module.exports = (io) => {
 
         socket.join(game.pin);
 
+        // Store maxPlayers in the game
+        game.maxPlayers = maxPlayers;
+        await game.save();
+
         activeGames.set(game.pin, {
           gameId: game._id,
           hostId,
           players: [],
+          maxPlayers: maxPlayers, // Store the limit in active games
           currentQuestion: 0,
           isActive: true,
           results: [],
+          correctAnswersCount: {},
         });
 
         socket.emit("game-created", { pin: game.pin });
 
-        console.log(`Game created with PIN: ${game.pin}`);
+        console.log(
+          `Game created with PIN: ${game.pin}, Max Players: ${maxPlayers}`
+        );
       } catch (error) {
         console.error("Error creating game:", error);
         socket.emit("game-error", { message: "Error creating game" });
@@ -60,34 +68,78 @@ module.exports = (io) => {
           return;
         }
 
-        // Создаем нового игрока
-        const player = {
-          id: socket.id,
-          socketId: socket.id, // Добавляем socketId
-          nickname: nickname,
-          score: 0,
-        };
-
-        // Добавляем игрока в игру
-        game.players.push(player);
-        await game.save();
-
-        // Присоединяем сокет к комнате игры
-        socket.join(pin);
-
-        // Сохраняем данные в activeGames
-        if (!activeGames.has(pin)) {
-          activeGames.set(pin, {
-            gameId: game._id,
-            players: new Map(),
-          });
+        // Check if game is at max capacity
+        if (game.maxPlayers && game.players.length >= game.maxPlayers) {
+          socket.emit("join-error", { message: "Game is full" });
+          return;
         }
-        activeGames.get(pin).players.set(socket.id, player);
 
-        // Оповещаем всех об обновлении списка игроков
+        // Проверяем, существует ли уже игрок с таким nickname
+        const existingPlayerIndex = game.players.findIndex(
+          (p) => p.nickname === nickname
+        );
+
+        if (existingPlayerIndex !== -1) {
+          // Обновляем socketId существующего игрока
+          game.players[existingPlayerIndex].socketId = socket.id;
+          game.players[existingPlayerIndex].id = socket.id;
+
+          // Явно указываем mongoose, что массив был изменен
+          game.markModified("players");
+          await game.save();
+
+          // Присоединяем к комнате
+          socket.join(pin);
+
+          // Обновляем activeGames Map, если она уже существует
+          if (activeGames.has(pin)) {
+            const existingPlayer = game.players[existingPlayerIndex];
+            activeGames.get(pin).players.set(socket.id, existingPlayer);
+          }
+
+          // Отправляем существующий счет игроку
+          socket.emit("player-rejoined", {
+            score: game.players[existingPlayerIndex].score || 0,
+          });
+
+          console.log(
+            `Player ${nickname} reconnected to game ${pin} with score ${
+              game.players[existingPlayerIndex].score || 0
+            }`
+          );
+        } else {
+          // Create new player...
+          const player = {
+            id: socket.id,
+            socketId: socket.id,
+            nickname: nickname,
+            score: 0,
+          };
+
+          // Add player to game
+          game.players.push(player);
+          game.markModified("players");
+          await game.save();
+
+          // Join socket to room...
+          socket.join(pin);
+
+          // Update activeGames Map
+          if (!activeGames.has(pin)) {
+            activeGames.set(pin, {
+              gameId: game._id,
+              players: new Map(),
+              maxPlayers: game.maxPlayers || 10, // Default to 10 if not set
+              correctAnswersCount: {},
+            });
+          }
+          activeGames.get(pin).players.set(socket.id, player);
+
+          console.log(`Player ${nickname} joined game ${pin}`);
+        }
+
+        // Emit player joined event в любом случае
         io.to(pin).emit("player-joined", { players: game.players });
-
-        console.log(`Player ${nickname} joined game ${pin}`);
       } catch (error) {
         console.error("Join error:", error);
         socket.emit("join-error", { message: "Failed to join game" });
@@ -101,6 +153,11 @@ module.exports = (io) => {
           game.isActive = true;
           game.currentQuestionIndex = 0;
           await game.save();
+
+          // Reset correctAnswersCount for new game
+          if (activeGames.has(pin)) {
+            activeGames.get(pin).correctAnswersCount = {};
+          }
 
           io.to(pin).emit("game-started");
 
@@ -121,9 +178,128 @@ module.exports = (io) => {
 
     socket.on("new-question", async ({ pin, question }) => {
       try {
+        // Reset correctAnswersCount for this question
+        if (activeGames.has(pin)) {
+          const activeGame = activeGames.get(pin);
+          activeGame.correctAnswersCount[question.questionNumber] = 0;
+        }
+
         io.to(pin).emit("question", question);
       } catch (error) {
         console.error("New question error:", error);
+      }
+    });
+
+    // New handler for answer history requests
+    socket.on("request-answer-history", async ({ pin, questionIndex }) => {
+      try {
+        console.log(
+          "Answer history requested for game:",
+          pin,
+          "question:",
+          questionIndex
+        );
+        const game = await Game.findOne({ pin }).populate("quiz");
+
+        if (!game) {
+          console.error("Game not found for answer history request");
+          return;
+        }
+
+        const currentQuestion = game.quiz.questions[questionIndex];
+
+        if (!currentQuestion) {
+          console.error("Question not found for answer history request");
+          return;
+        }
+
+        // Create answer history data from players
+        const answerHistoryData = game.players.map((player) => {
+          const isCorrect = player.lastAnswer === currentQuestion.correctAnswer;
+          const answerText = currentQuestion.options[player.lastAnswer];
+
+          return {
+            playerId: player.id || player.socketId,
+            nickname: player.nickname,
+            answer: player.lastAnswer,
+            answerText: answerText || "No answer",
+            isCorrect: isCorrect,
+            points: player.lastPoints || 0,
+            totalScore: player.score || 0,
+          };
+        });
+
+        // Send answer history only to the host (socket that requested it)
+        socket.emit("show-answer-history", answerHistoryData);
+      } catch (error) {
+        console.error("Request answer history error:", error);
+      }
+    });
+
+    socket.on("activate-boost", async ({ pin, boostType, questionIndex }) => {
+      try {
+        console.log(`Player activating boost: ${boostType} for pin ${pin}`);
+        const game = await Game.findOne({ pin }).populate("quiz");
+        if (!game || !game.isActive) return;
+
+        const player = game.players.find(
+          (p) => p.socketId === socket.id || p.id === socket.id
+        );
+        if (!player) return;
+
+        // Check if boost already used
+        if (player.usedBoosts && player.usedBoosts.includes(boostType)) {
+          socket.emit("boost-error", { message: "Boost already used" });
+          return;
+        }
+
+        // Mark boost as used
+        if (!player.usedBoosts) player.usedBoosts = [];
+        player.usedBoosts.push(boostType);
+
+        // Mark boost as active
+        if (!player.activeBoosts) player.activeBoosts = [];
+        player.activeBoosts.push(boostType);
+
+        // Handle fifty-fifty boost immediately
+        if (boostType === "fifty_fifty") {
+          const currentQuestion = game.quiz.questions[questionIndex];
+          if (currentQuestion) {
+            // Get correct answer index
+            const correctAnswerIndex = currentQuestion.correctAnswer;
+
+            // Create array of option indices
+            const optionIndices = [
+              ...Array(currentQuestion.options.length).keys(),
+            ];
+
+            // Remove correct answer from options to choose from
+            const incorrectIndices = optionIndices.filter(
+              (i) => i !== correctAnswerIndex
+            );
+
+            // Randomly select one incorrect answer to keep
+            const keepIncorrectIndex =
+              incorrectIndices[
+                Math.floor(Math.random() * incorrectIndices.length)
+              ];
+
+            // Final options to show are the correct one and one random incorrect one
+            const reducedOptions = [correctAnswerIndex, keepIncorrectIndex];
+
+            // Send reduced options to this player only
+            socket.emit("fifty-fifty-options", reducedOptions);
+          }
+        }
+
+        // Save player state
+        await game.save();
+
+        // Confirm boost activation
+        socket.emit("boost-activated", { boostType });
+      } catch (error) {
+        console.error("Activate boost error:", error);
+        socket.emit("boost-error", { message: "Failed to activate boost" });
       }
     });
 
@@ -133,57 +309,155 @@ module.exports = (io) => {
         try {
           const game = await Game.findOne({ pin }).populate("quiz");
           if (!game || !game.isActive) return;
-    
-          const player = game.players.find(
+
+          // Находим индекс игрока вместо прямой ссылки
+          const playerIndex = game.players.findIndex(
             (p) => p.socketId === socket.id || p.id === socket.id
           );
-          if (!player) return;
-    
+
+          if (playerIndex === -1) return;
+
+          // Получаем ссылку на игрока
+          const player = game.players[playerIndex];
+
           // Save the player's answer
           player.lastAnswer = answerIndex;
-    
+
           const currentQuestion =
             game.quiz.questions[game.currentQuestionIndex];
           if (!currentQuestion) return;
-    
+
+          // Check if answer is correct
           const isCorrect = answerIndex === currentQuestion.correctAnswer;
+          console.log(
+            `Player ${player.nickname} answered: ${answerIndex}, correct: ${currentQuestion.correctAnswer}, is correct: ${isCorrect}`
+          );
+
           let points = 0;
-    
+
           if (isCorrect) {
-            // Базовая формула очков с учетом времени
-            points = Math.round(1000 * (1 - timeSpent / 20));
-            if (boosts.includes("double_points")) {
-              points *= 2;
+            // Get active game data and initialize if needed
+            if (!activeGames.has(pin)) {
+              activeGames.set(pin, {
+                gameId: game._id,
+                correctAnswersCount: {},
+              });
             }
-    
+
+            const activeGame = activeGames.get(pin);
+            const currentQuestionNumber = game.currentQuestionIndex + 1;
+
+            // Initialize counter for this question if it doesn't exist
+            if (!activeGame.correctAnswersCount[currentQuestionNumber]) {
+              activeGame.correctAnswersCount[currentQuestionNumber] = 0;
+            }
+
+            // Calculate points based on answer order (first gets 1000, then 10% less each time)
+            const answerPosition =
+              activeGame.correctAnswersCount[currentQuestionNumber];
+            points = Math.round(1000 * Math.pow(0.9, answerPosition));
+
+            // Store the points for this answer
+            player.lastPoints = points;
+
+            // Increment correct answers counter for this question
+            activeGame.correctAnswersCount[currentQuestionNumber]++;
+
+            // Update player score - ensure we're adding to the existing score
             player.correctAnswers = (player.correctAnswers || 0) + 1;
-    
-            // Важно! Накапливаем очки
-            player.score = (player.score || 0) + points;
+            // Make sure player.score exists before adding to it
+            if (typeof player.score !== "number") {
+              player.score = 0;
+            }
+            player.score += points;
+
+            // Явно обновляем игрока в массиве game.players
+            game.players[playerIndex] = player;
+
+            // Указываем Mongoose, что массив players был изменен
+            game.markModified("players");
+
+            console.log(
+              `Player ${player.nickname} scored ${points} points, new total: ${player.score}`
+            );
+          } else {
+            // Even for wrong answers, store 0 points
+            player.lastPoints = 0;
           }
-    
+
+          // IMPORTANT: Save the game with updated scores
           await game.save();
-    
-          // Отправка результата игроку с общим количеством очков
+
+          // Send result to player with the updated total score
           socket.emit("answer-result", {
             correct: isCorrect,
-            points: points, // очки за текущий ответ
-            totalScore: player.score, // общие очки игрока
+            points: points,
+            totalScore: player.score,
             correctAnswer: currentQuestion.correctAnswer,
           });
-    
-          // Обновление состояния игры у ведущего (хоста)
+
+          // Update host with player's new score and include the points awarded
           io.to(pin).emit("player-answered", {
             playerId: socket.id,
             nickname: player.nickname,
-            score: player.score, // отправляем общий счет игрока
+            score: player.score,
             answerIndex: answerIndex,
-            totalAnswered: game.players.filter(p => p.lastAnswer !== undefined).length,
-            correctCount: game.players.filter(p => p.lastAnswer === currentQuestion.correctAnswer).length,
+            pointsAwarded: points,
+            totalAnswered: game.players.filter(
+              (p) => typeof p.lastAnswer === "number" || p.lastAnswer !== null
+            ).length,
+            correctCount: game.players.filter(
+              (p) => p.lastAnswer === currentQuestion.correctAnswer
+            ).length,
           });
-    
-          // Обновление всех игроков с актуальными очками
+
+          // Send updated players list to everyone
           io.to(pin).emit("update-players", game.players);
+
+          // Check if all players have answered - improved check
+          const allAnswered = game.players.every(
+            (p) => typeof p.lastAnswer === "number" || p.lastAnswer !== null
+          );
+
+          // If all players have answered, send answer history to host
+          if (allAnswered && game.players.length > 0) {
+            // Include ALL players who have answered in any form
+            const answeredPlayers = game.players.filter(
+              (p) => typeof p.lastAnswer === "number" || p.lastAnswer !== null
+            );
+
+            console.log(
+              "Server generating answer history for players:",
+              answeredPlayers.length
+            );
+
+            const answerHistoryData = answeredPlayers.map((p) => {
+              const isCorrect = p.lastAnswer === currentQuestion.correctAnswer;
+              // Safely access the options array with a fallback for any invalid index
+              const answerText =
+                currentQuestion.options &&
+                p.lastAnswer !== undefined &&
+                currentQuestion.options[p.lastAnswer]
+                  ? currentQuestion.options[p.lastAnswer]
+                  : "No answer";
+
+              return {
+                playerId: p.id || p.socketId,
+                nickname: p.nickname,
+                answer: p.lastAnswer, // Keep the numerical answer index
+                answerIndex: p.lastAnswer, // Include alternative property name for consistency
+                answerText: answerText,
+                isCorrect: isCorrect,
+                points: p.lastPoints || 0,
+                totalScore: p.score || 0,
+              };
+            });
+
+            console.log("Sending answer history data:", answerHistoryData);
+
+            // Send to everyone in the game room (host will handle displaying it)
+            io.to(pin).emit("show-answer-history", answerHistoryData);
+          }
         } catch (error) {
           console.error("Submit answer error:", error);
         }
@@ -209,42 +483,16 @@ module.exports = (io) => {
           correctAnswer: question.correctAnswer,
         };
 
+        // Reset correctAnswersCount for this new question
+        if (activeGames.has(pin)) {
+          const activeGame = activeGames.get(pin);
+          activeGame.correctAnswersCount[game.currentQuestionIndex + 1] = 0;
+        }
+
         // Send to both host and players
         io.to(pin).emit("question", questionData);
       } catch (error) {
         console.error("Next question error:", error);
-      }
-    });
-
-    socket.on("new-question", ({ pin, question, questionNumber }) => {
-      io.to(pin).emit("question", { ...question, questionNumber });
-    });
-
-    socket.on("use-boost", async ({ pin, playerId, boostType }) => {
-      try {
-        const game = await Game.findOne({ pin });
-        if (!game) return;
-
-        const player = game.players.find((p) => p.id === playerId);
-        if (!player) return;
-
-        if (!player.usedBoosts) {
-          player.usedBoosts = [];
-        }
-
-        if (!player.usedBoosts.includes(boostType)) {
-          player.usedBoosts.push(boostType);
-          await game.save();
-
-          socket.emit("boost-used", { boostType });
-          if (boostType === "fifty_fifty") {
-            const currentQuestion = game.quiz.questions[game.currentQuestion];
-            const reducedOptions = getFiftyFiftyOptions(currentQuestion);
-            socket.emit("question-options", reducedOptions);
-          }
-        }
-      } catch (error) {
-        console.error("Use boost error:", error);
       }
     });
 
@@ -266,112 +514,6 @@ module.exports = (io) => {
         console.log(`Game ${pin} has ended`);
       } catch (error) {
         console.error("End game error:", error);
-      }
-    });
-
-    socket.on("wheel:spin", async ({ pin, playerId, multiplier }) => {
-      try {
-        const game = await Game.findOne({ pin });
-        if (!game) return;
-
-        // Найти игрока в игре
-        const player = game.players.find(
-          (p) => p.socketId === socket.id || p.id === socket.id
-        );
-        if (!player) return;
-
-        // Применить множитель к счету
-        const newScore = Math.round(player.score * multiplier);
-        player.score = newScore;
-        await game.save();
-
-        // Отправить результат только этому игроку
-        socket.emit("wheel:result", {
-          newScore,
-          multiplier,
-        });
-
-        // Обновить список игроков для хоста
-        io.to(pin).emit("update-players", game.players);
-      } catch (error) {
-        console.error("Wheel spin error:", error);
-      }
-    });
-
-    socket.on("join-wheel", ({ pin, gameId }) => {
-      socket.join(`wheel_${pin}`);
-    });
-
-    socket.on(
-      "wheel-spin",
-      async ({ pin, gameId, multiplier, currentScore, nickname }) => {
-        try {
-          console.log("Wheel spin:", {
-            pin,
-            gameId,
-            multiplier,
-            currentScore,
-            nickname,
-          });
-
-          const game = await Game.findById(gameId);
-          if (!game) {
-            console.error("Game not found");
-            return;
-          }
-
-          // Find the player by socket ID or nickname
-          const player = game.players.find(
-            (p) => p.socketId === socket.id || p.nickname === nickname
-          );
-
-          if (!player) {
-            console.error("Player not found");
-            return;
-          }
-
-          // Calculate new score with the multiplier
-          const updatedScore = Math.round(currentScore * multiplier);
-          player.score = updatedScore;
-
-          // Save game with updated player score
-          await game.save();
-
-          // Emit result back to the specific player
-          socket.emit("wheel-result", {
-            updatedScore,
-            multiplier,
-          });
-
-          // Broadcast updated players list to everyone in the game room
-          // This ensures the host's view is updated
-          io.to(pin).emit("update-players", game.players);
-
-          console.log(
-            `Player ${player.nickname} score updated: ${currentScore} -> ${updatedScore}`
-          );
-        } catch (error) {
-          console.error("Wheel spin error:", error);
-        }
-      }
-    );
-
-    // Add a new handler for skipping the wheel
-    socket.on("wheel-skip", async ({ pin, gameId, nickname, currentScore }) => {
-      try {
-        console.log("Player skipped wheel:", { pin, gameId, nickname });
-
-        // We don't need to update the score, but we still want to let the host know
-        // the player is done with the wheel and ready for results
-        socket.emit("wheel-skipped");
-
-        // Let the host know the player is ready for results
-        io.to(pin).emit("player-ready-for-results", {
-          nickname,
-          score: currentScore,
-        });
-      } catch (error) {
-        console.error("Wheel skip error:", error);
       }
     });
 
@@ -431,18 +573,4 @@ function getFiftyFiftyOptions(question) {
   const randomWrongAnswer =
     wrongAnswers[Math.floor(Math.random() * wrongAnswers.length)];
   return [correctAnswer, randomWrongAnswer].sort(() => Math.random() - 0.5);
-}
-
-function spinWheel() {
-  const results = [
-    { type: "bonus", value: 0.1, label: "🎉 +10%" },
-    { type: "bonus", value: 0.05, label: "⭐ +5%" },
-    { type: "penalty", value: -0.05, label: "😬 -5%" },
-    { type: "penalty", value: -0.1, label: "💥 -10%" },
-  ];
-  return results[Math.floor(Math.random() * results.length)];
-}
-
-function applyWheelResult(score, result) {
-  return Math.round(score * (1 + result.value));
 }
