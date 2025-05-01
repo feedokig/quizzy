@@ -1,15 +1,17 @@
-// client/src/pages/dashboard/Dashboard.js
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { getUserQuizzes, deleteQuiz } from '../../services/quizService';
 import { useNavigate } from 'react-router-dom';
-import gameService from "../../services/gameService";
+import gameService from '../../services/gameService';
 import { useAuth } from '../../contexts/AuthContext';
 import Spinner from '../../components/ui/Spinner';
 import Alert from '../../components/ui/Alert';
+import LanguageToggle from '../../components/LanguageToggle'; // Импортируем компонент
+import { useTranslation } from 'react-i18next'; // Импортируем хук для переводов
 import './Dashboard.css';
 
 const Dashboard = () => {
+  const { t } = useTranslation(); // Хук для доступа к переводам
   const [quizzes, setQuizzes] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -23,7 +25,7 @@ const Dashboard = () => {
         const data = await getUserQuizzes();
         setQuizzes(data);
       } catch (err) {
-        setError('Failed to fetch quizzes');
+        setError(t('dashboard.error')); // Используем перевод
         console.error(err);
       } finally {
         setLoading(false);
@@ -31,16 +33,16 @@ const Dashboard = () => {
     };
 
     fetchQuizzes();
-  }, []);
+  }, [t]);
 
   const handleDeleteQuiz = async (id) => {
-    if (window.confirm('Are you sure you want to delete this quiz?')) {
+    if (window.confirm(t('dashboard.deleteConfirm'))) {
       try {
         await deleteQuiz(id);
         setQuizzes(quizzes.filter((quiz) => quiz._id !== id));
-        setAlert({ type: 'success', message: 'Quiz deleted successfully' });
+        setAlert({ type: 'success', message: t('dashboard.deleteSuccess') });
       } catch (err) {
-        setAlert({ type: 'danger', message: 'Failed to delete quiz' });
+        setAlert({ type: 'danger', message: t('dashboard.deleteFailed') });
       }
     }
   };
@@ -51,32 +53,31 @@ const Dashboard = () => {
       console.log('Starting game for quiz:', quizId);
       const game = await gameService.createGame(quizId);
       console.log('Game created:', game);
-      
+
       if (!game || !game._id) {
-        throw new Error('Invalid game data received');
+        throw new Error(t('dashboard.invalidGameData'));
       }
-      
-      // Navigate with the game data
-      navigate(`/host/${game._id}`, { 
-        state: { game } 
+
+      navigate(`/host/${game._id}`, {
+        state: { game },
       });
     } catch (error) {
       console.error('Failed to host game:', error);
       setAlert({
         type: 'error',
-        message: error.message || 'Failed to create game'
+        message: error.message || t('dashboard.failedToCreateGame'),
       });
     }
   };
-  
+
   if (loading) return <Spinner />;
 
   return (
     <div className="dashboard">
       <div className="dashboard-header">
-        <h1>My Quizzes</h1>
+        <h1>{t('dashboard.title')}</h1>
         <Link to="/create-quiz" className="btn-primary">
-          Create New Quiz
+          {t('dashboard.createQuiz')}
         </Link>
       </div>
 
@@ -92,10 +93,10 @@ const Dashboard = () => {
 
       {quizzes.length === 0 ? (
         <div className="empty-state card">
-          <h3>No quizzes yet</h3>
-          <p>Create your first quiz to get started!</p>
+          <h3>{t('dashboard.noQuizzes')}</h3>
+          <p>{t('dashboard.noQuizzesDescription')}</p>
           <Link to="/create-quiz" className="btn-primary">
-            Create Quiz
+            {t('dashboard.createQuiz')}
           </Link>
         </div>
       ) : (
@@ -106,8 +107,12 @@ const Dashboard = () => {
                 <h3>{quiz.title}</h3>
                 <p>{quiz.description}</p>
                 <div className="quiz-meta">
-                  <span>{quiz.questions.length} questions</span>
-                  <span>Created: {new Date(quiz.createdAt).toLocaleDateString()}</span>
+                  <span>
+                    {quiz.questions.length} {t('dashboard.questions')}
+                  </span>
+                  <span>
+                    {t('dashboard.created')}: {new Date(quiz.createdAt).toLocaleDateString()}
+                  </span>
                 </div>
               </div>
               <div className="quiz-actions">
@@ -115,19 +120,19 @@ const Dashboard = () => {
                   className="btn-primary"
                   onClick={() => handleHostGame(quiz._id)}
                 >
-                  Host Game
+                  {t('dashboard.hostGame')}
                 </button>
                 <Link to={`/quiz/${quiz._id}`} className="btn-secondary">
-                  View
+                  {t('dashboard.view')}
                 </Link>
                 <Link to={`/edit-quiz/${quiz._id}`} className="btn-warning">
-                  Edit
+                  {t('dashboard.edit')}
                 </Link>
                 <button
                   className="btn-danger"
                   onClick={() => handleDeleteQuiz(quiz._id)}
                 >
-                  Delete
+                  {t('dashboard.delete')}
                 </button>
               </div>
             </div>

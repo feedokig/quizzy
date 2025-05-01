@@ -1,8 +1,10 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import './JoinGame.css';
 
 const JoinGame = () => {
+  const { t } = useTranslation();
   const [pin, setPin] = useState('');
   const [nickname, setNickname] = useState('');
   const [error, setError] = useState('');
@@ -11,44 +13,41 @@ const JoinGame = () => {
   const handleJoinGame = async (e) => {
     e.preventDefault();
     if (!pin || !nickname.trim()) {
-      setError('Please enter both PIN and nickname');
+      setError(t('joinGame.error.emptyFields'));
       return;
     }
-  
+
     try {
-      // Store nickname in localStorage
       localStorage.setItem('playerNickname', nickname.trim());
-      
-      // Navigate to game with nickname as state
       navigate(`/play/${pin}`, {
-        state: { nickname: nickname.trim() }
+        state: { nickname: nickname.trim() },
       });
     } catch (error) {
-      setError('Failed to join game. Please check the PIN and try again.');
+      setError(t('joinGame.error.failed'));
     }
   };
 
   return (
     <div className="join-game-container">
       <div className="join-game-form">
-        <h1>Join a Game</h1>
+        <h1>{t('joinGame.title')}</h1>
         {error && <div className="error-message">{error}</div>}
         <form onSubmit={handleJoinGame}>
           <input
             type="text"
-            placeholder="Enter Game PIN"
+            placeholder={t('joinGame.pinPlaceholder')}
             value={pin}
             onChange={(e) => setPin(e.target.value)}
             maxLength={6}
           />
           <input
             type="text"
-            placeholder="Choose a nickname"
+            placeholder={t('joinGame.nicknamePlaceholder')}
             value={nickname}
             onChange={(e) => setNickname(e.target.value)}
             maxLength={15}
           />
-          <button type="submit">Join</button>
+          <button type="submit">{t('joinGame.joinButton')}</button>
         </form>
       </div>
     </div>

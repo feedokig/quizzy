@@ -1,20 +1,19 @@
-// pages/game/PlayerGame
-
-import React, { useState, useEffect } from "react";
-import { useParams, useNavigate } from "react-router-dom";
-import io from "socket.io-client";
-import "./PlayerGame.css";
+import React, { useState, useEffect, useRef } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
+import './PlayerGame.css';
+import socketService from '../../services/socketService';
 
 const PlayerGame = () => {
+  const { t } = useTranslation();
   const { pin } = useParams();
-  const [socket, setSocket] = useState(null);
   const [question, setQuestion] = useState(null);
   const [selectedAnswer, setSelectedAnswer] = useState(null);
   const [correctAnswer, setCorrectAnswer] = useState(null);
   const [score, setScore] = useState(0);
-  const [gameState, setGameState] = useState("playing");
+  const [gameState, setGameState] = useState('playing');
+  const [maxPlayers, setMaxPlayers] = useState(10);
   const navigate = useNavigate();
-  // Boost states
   const [availableBoosts, setAvailableBoosts] = useState({
     fifty_fifty: true,
   });
@@ -22,103 +21,115 @@ const PlayerGame = () => {
     fifty_fifty: false,
   });
   const [reducedOptions, setReducedOptions] = useState(null);
+  const hasJoined = useRef(false);
   
   useEffect(() => {
-    const newSocket = io("http://localhost:5000");
-    setSocket(newSocket);
+    const socket = socketService.connect();
   
-    // Store the PIN in localStorage so it can be accessed later if needed
-    localStorage.setItem("gamePin", pin);
+    localStorage.setItem('gamePin', pin);
   
-    newSocket.on("question", (questionData) => {
-      console.log("Received question:", questionData);
+    const handleQuestion = (questionData) => {
+      console.log('Received question:', questionData);
       setQuestion(questionData);
       setSelectedAnswer(null);
       setCorrectAnswer(null);
       setReducedOptions(null);
-      // НЕ сбрасываем счёт - это ключевая проблема
-      // setScore(0); - эта строка раньше могла быть тут
-    });
+    };
 
-    newSocket.on('answer-result', (result) => {
+    const handleAnswerResult = (result) => {
       console.log('Answer result:', result);
       
-      // Всегда обновляем счёт на основе ответа сервера, независимо от того,
-      // правильный ответ или нет
       if (result.totalScore !== undefined) {
         setScore(result.totalScore);
       }
       
       setCorrectAnswer(result.correctAnswer);
-    });
+    };
 
-    newSocket.on("update-players", (players) => {
-      console.log("Updated players list received:", players);
-      // Найдем собственного игрока по ID сокета и обновим счёт
-      const currentPlayer = players.find(p => p.socketId === newSocket.id || p.id === newSocket.id);
+    const handleUpdatePlayers = (players) => {
+      console.log('Updated players list received:', players);
+      const currentPlayer = players.find(p => p.socketId === socketService.getSocket().id || p.id === socketService.getSocket().id);
       if (currentPlayer && typeof currentPlayer.score === 'number') {
         setScore(currentPlayer.score);
       }
-    });
+    };
 
-    newSocket.on("player-rejoined", (data) => {
-      console.log("Player rejoined with data:", data);
+    const handlePlayerRejoined = (data) => {
+      console.log('Player rejoined with data:', data);
       if (typeof data.score === 'number') {
         setScore(data.score);
       }
-    });
+    };
 
-    // Handle fifty-fifty reduced options
-    newSocket.on("fifty-fifty-options", (options) => {
-      console.log("Received reduced options:", options);
+    const handleFiftyFiftyOptions = (options) => {
+      console.log('Received reduced options:', options);
       setReducedOptions(options);
-    });
+    };
 
-    // Handle boost activation confirmation
-    newSocket.on("boost-activated", ({ boostType }) => {
-      console.log(`Boost ${boostType} activated successfully`);
-    });
+    const handleGameEnded = () => {
+      setGameState('ended');
+    };
 
-    newSocket.on("game-ended", () => {
-      setGameState("ended");
-    });
-
-    newSocket.on("quiz:finished", (data) => {
-      console.log("Quiz finished event received:", data);
-      // Change to direct navigation to results instead of wheel
+    const handleQuizFinished = (data) => {
+      console.log('Quiz finished event received:', data);
       navigate(`/game/results`, {
         state: {
           finalScore: score
         },
       });
-    });
+    };
 
-    const nickname = localStorage.getItem("playerNickname");
-    console.log("Joining game:", { pin, nickname });
-    newSocket.emit("player-join", { pin, nickname });
+    const handleMaxPlayersUpdated = ({ maxPlayers }) => {
+      setMaxPlayers(maxPlayers);
+    };
 
-    return () => newSocket.disconnect();
+    const handleJoinError = (error) => {
+      console.error('Join error:', error);
+    };
+
+    socketService.on('question', handleQuestion);
+    socketService.on('answer-result', handleAnswerResult);
+    socketService.on('update-players', handleUpdatePlayers);
+    socketService.on('player-rejoined', handlePlayerRejoined);
+    socketService.on('fifty-fifty-options', handleFiftyFiftyOptions);
+    socketService.on('game-ended', handleGameEnded);
+    socketService.on('quiz:finished', handleQuizFinished);
+    socketService.on('max-players-updated', handleMaxPlayersUpdated);
+    socketService.on('join-error', handleJoinError);
+
+    const nickname = localStorage.getItem('playerNickname');
+    if (!hasJoined.current) {
+      console.log('Joining game:', { pin, nickname });
+      socketService.playerJoin(pin, nickname);
+      hasJoined.current = true;
+    }
+
+    return () => {
+      socketService.off('question', handleQuestion);
+      socketService.off('answer-result', handleAnswerResult);
+      socketService.off('update-players', handleUpdatePlayers);
+      socketService.off('player-rejoined', handlePlayerRejoined);
+      socketService.off('fifty-fifty-options', handleFiftyFiftyOptions);
+      socketService.off('game-ended', handleGameEnded);
+      socketService.off('quiz:finished', handleQuizFinished);
+      socketService.off('max-players-updated', handleMaxPlayersUpdated);
+      socketService.off('join-error', handleJoinError);
+    };
   }, [pin, navigate, score]);
 
   const handleAnswer = (index) => {
     if (selectedAnswer !== null || !question) return;
     setSelectedAnswer(index);
-    console.log("Submitting answer:", index);
+    console.log('Submitting answer:', index);
     
-    // Collect active boosts to send with the answer
     const activeBoostsList = Object.entries(activeBoosts)
       .filter(([_, isActive]) => isActive)
       .map(([boostType]) => boostType);
     
-    console.log("Active boosts when answering:", activeBoostsList);
+    console.log('Active boosts when answering:', activeBoostsList);
     
-    socket.emit("submit-answer", {
-      pin,
-      answerIndex: index,
-      boosts: activeBoostsList
-    });
+    socketService.submitAnswer(pin, index, 0, activeBoostsList);
 
-    // Reset fifty-fifty after answering
     if (activeBoosts.fifty_fifty) {
       setActiveBoosts(prev => ({
         ...prev,
@@ -128,30 +139,22 @@ const PlayerGame = () => {
   };
 
   const activateBoost = (boostType) => {
-    // Check if boost is available
     if (!availableBoosts[boostType]) return;
     
     console.log(`Activating boost: ${boostType}`);
     
-    // Mark boost as used
     setAvailableBoosts(prev => ({
       ...prev,
       [boostType]: false
     }));
     
-    // Set boost as active
     setActiveBoosts(prev => ({
       ...prev,
       [boostType]: true
     }));
     
-    // Handle fifty-fifty immediately
-    if (boostType === "fifty_fifty") {
-      socket.emit("activate-boost", {
-        pin,
-        boostType,
-        questionIndex: question.questionNumber - 1
-      });
+    if (boostType === 'fifty_fifty') {
+      socketService.activateBoost(pin, boostType, question.questionNumber - 1);
     }
   };
 
@@ -159,20 +162,23 @@ const PlayerGame = () => {
     <div className="boosts-container">
       <button 
         className={`boost-button fifty-fifty ${!availableBoosts.fifty_fifty ? 'used' : ''} ${activeBoosts.fifty_fifty ? 'active' : ''}`}
-        onClick={() => activateBoost("fifty_fifty")}
+        onClick={() => activateBoost('fifty_fifty')}
         disabled={!availableBoosts.fifty_fifty || selectedAnswer !== null}
       >
-        <span className="boost-icon">🛡️</span>
-        <span className="boost-name">50/50</span>
+        <span className="boost-icon">{t('playerGame.boost.fiftyFiftyIcon')}</span>
+        <span className="boost-name">{t('playerGame.boost.fiftyFiftyName')}</span>
         <span className="boost-status">
-          {!availableBoosts.fifty_fifty ? 'Used' : activeBoosts.fifty_fifty ? 'Active' : 'Available'}
+          {!availableBoosts.fifty_fifty
+            ? t('playerGame.boost.used')
+            : activeBoosts.fifty_fifty
+            ? t('playerGame.boost.active')
+            : t('playerGame.boost.available')}
         </span>
       </button>
     </div>
   );
 
   const renderAnswer = (option, index) => {
-    // Skip rendering this option if it's filtered out by fifty-fifty
     if (reducedOptions && !reducedOptions.includes(index)) {
       return null;
     }
@@ -181,13 +187,13 @@ const PlayerGame = () => {
       <button
         key={index}
         className={`answer-button answer-${index} ${
-          selectedAnswer === index ? "selected" : ""
-        } ${correctAnswer !== null && index === correctAnswer ? "correct" : ""} ${
+          selectedAnswer === index ? 'selected' : ''
+        } ${correctAnswer !== null && index === correctAnswer ? 'correct' : ''} ${
           correctAnswer !== null &&
           selectedAnswer === index &&
           index !== correctAnswer
-            ? "wrong"
-            : ""
+            ? 'wrong'
+            : ''
         }`}
         onClick={() => handleAnswer(index)}
         disabled={selectedAnswer !== null}
@@ -199,18 +205,18 @@ const PlayerGame = () => {
 
   return (
     <div className="player-game">
-      {gameState === "ended" ? (
+      {gameState === 'ended' ? (
         <div className="game-ended">
-          <h2>Game Over</h2>
-          <div className="final-score">Your final score: {score}</div>
+          <h2>{t('playerGame.gameOver')}</h2>
+          <div className="final-score">{t('playerGame.finalScore').replace('{score}', score)}</div>
         </div>
       ) : question ? (
         <>
           <div className="game-header">
             <div className="question-count">
-              Question {question.questionNumber} of {question.totalQuestions}
+              {t('playerGame.questionCount').replace('{current}', question.questionNumber).replace('{total}', question.totalQuestions)}
             </div>
-            <div className="score-display">Your score: {score}</div>
+            <div className="score-display">{t('playerGame.scoreDisplay').replace('{score}', score)}</div>
           </div>
           
           <div className="question-container">
@@ -225,9 +231,9 @@ const PlayerGame = () => {
         </>
       ) : (
         <div className="waiting">
-          <h2>Waiting for question...</h2>
+          <h2>{t('playerGame.waiting')}</h2>
           {score > 0 && (
-            <div className="current-score">Current score: {score}</div>
+            <div className="current-score">{t('playerGame.scoreDisplay').replace('{score}', score)}</div>
           )}
         </div>
       )}

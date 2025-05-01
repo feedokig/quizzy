@@ -1,10 +1,11 @@
-// client/src/pages/quiz/QuizDetails.js
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import axios from 'axios';
-import './CreateQuiz.css'; // Reusing the same CSS for consistent styling
+import { useTranslation } from 'react-i18next';
+import './CreateQuiz.css';
 
 const QuizDetails = () => {
+  const { t } = useTranslation();
   const { id } = useParams();
   const navigate = useNavigate();
   const [quiz, setQuiz] = useState(null);
@@ -16,7 +17,7 @@ const QuizDetails = () => {
       try {
         const token = localStorage.getItem('token');
         if (!token) {
-          setError('You must be logged in to view quiz details');
+          setError(t('quizDetails.error.unauthorized'));
           setLoading(false);
           return;
         }
@@ -34,15 +35,14 @@ const QuizDetails = () => {
         setLoading(false);
       } catch (err) {
         console.error('Error fetching quiz:', err);
-        setError(err.response?.data?.message || 'Error fetching quiz details');
+        setError(err.response?.data?.message || t('quizDetails.error.fetchFailed'));
         setLoading(false);
       }
     };
 
     fetchQuizData();
-  }, [id]);
+  }, [id, t]);
 
-  // Alert component
   const Alert = ({ type, message }) => (
     <div className={`alert alert-${type}`}>
       {message}
@@ -53,7 +53,7 @@ const QuizDetails = () => {
     return (
       <div className="create-quiz-container">
         <div className="create-quiz-form">
-          <h1>Loading Quiz...</h1>
+          <h1>{t('quizDetails.loading')}</h1>
         </div>
       </div>
     );
@@ -69,7 +69,7 @@ const QuizDetails = () => {
             onClick={() => navigate('/dashboard')}
             style={{ marginTop: '20px' }}
           >
-            Back to Dashboard
+            {t('quizDetails.backToDashboardButton')}
           </button>
         </div>
       </div>
@@ -83,23 +83,23 @@ const QuizDetails = () => {
         
         {quiz.wheelEnabled && (
           <div className="wheel-toggle" style={{ justifyContent: 'center', marginBottom: '20px' }}>
-            🎡 "Wheel of Fortune" is activated for this quiz
+            🎡 {t('quizDetails.wheelEnabled')}
           </div>
         )}
         
         <div className="questions-preview">
-          <h2>Questions ({quiz.questions.length})</h2>
+          <h2>{t('quizDetails.questionsSectionTitle', { count: quiz.questions.length })}</h2>
           
           {quiz.questions.length === 0 ? (
             <div className="empty-questions">
-              <p>This quiz doesn't have any questions yet.</p>
+              <p>{t('quizDetails.noQuestions')}</p>
             </div>
           ) : (
             <div className="questions-list">
               {quiz.questions.map((q, idx) => (
                 <div key={idx} className="question-card">
                   <div className="question-content">
-                    <span className="question-number">Question {idx + 1}</span>
+                    <span className="question-number">{t('createQuiz.questionNumber', { number: idx + 1 })}</span>
                     <p className="question-text">{q.question}</p>
                     
                     <div className="options-preview">
@@ -122,7 +122,7 @@ const QuizDetails = () => {
             onClick={() => navigate(`/edit-quiz/${quiz._id}`)}
             style={{ flex: 1 }}
           >
-            Edit Quiz
+            {t('quizDetails.editQuizButton')}
           </button>
           
           <button 
@@ -130,7 +130,7 @@ const QuizDetails = () => {
             onClick={() => navigate('/dashboard')}
             style={{ flex: 1 }}
           >
-            Back to Dashboard
+            {t('quizDetails.backToDashboardButton')}
           </button>
         </div>
       </div>

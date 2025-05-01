@@ -1,6 +1,5 @@
 // services/socketService.js
 import io from "socket.io-client";
-import gameService from "./gameService";
 
 class SocketService {
   constructor() {
@@ -18,7 +17,8 @@ class SocketService {
       onBoostError: null,
       onAnswerResult: null,
       onGameError: null,
-      onQuizFinished: null
+      onQuizFinished: null,
+      onMaxPlayersUpdated: null, // Added for max players updates
     };
   }
 
@@ -98,58 +98,69 @@ class SocketService {
     this.socket.on("quiz:finished", (data) => {
       if (this.callbacks.onQuizFinished) this.callbacks.onQuizFinished(data);
     });
+
+    // Max players updated event
+    this.socket.on("max-players-updated", (data) => {
+      if (this.callbacks.onMaxPlayersUpdated) this.callbacks.onMaxPlayersUpdated(data);
+    });
   }
 
   // Host methods
   hostJoin(pin, gameId, hostId) {
-    if (!this.socket) return;
+    if (!this.socket) this.connect();
     this.socket.emit("host-join", { pin, gameId, hostId });
   }
 
   startGame(pin, gameId) {
-    if (!this.socket) return;
+    if (!this.socket) this.connect();
     this.socket.emit("start-game", { pin, gameId });
   }
 
   sendQuestion(pin, questionData) {
-    if (!this.socket) return;
+    if (!this.socket) this.connect();
     this.socket.emit("new-question", { pin, question: questionData });
   }
 
   nextQuestion(pin, gameId) {
-    if (!this.socket) return;
+    if (!this.socket) this.connect();
     this.socket.emit("next-question", { pin, gameId });
   }
 
   kickPlayer(pin, playerId) {
-    if (!this.socket) return;
+    if (!this.socket) this.connect();
     this.socket.emit("kick-player", { pin, playerId });
   }
 
+  updateMaxPlayers(pin, maxPlayers) {
+    if (!this.socket) this.connect();
+    this.socket.emit('update-max-players', { pin, maxPlayers });
+    console.log(`Emitting update-max-players with pin ${pin} and maxPlayers ${maxPlayers}`);
+  }
+
   endGame(pin, results, gameId) {
-    if (!this.socket) return;
+    if (!this.socket) this.connect();
     this.socket.emit("end-game", { pin, results, gameId });
   }
 
   // Player methods
   playerJoin(pin, nickname) {
-    if (!this.socket) return;
+    if (!this.socket) this.connect();
     this.socket.emit("player-join", { pin, nickname });
   }
 
   submitAnswer(pin, answerIndex, timeSpent = 0, boosts = []) {
-    if (!this.socket) return;
+    if (!this.socket) this.connect();
     this.socket.emit("submit-answer", { pin, answerIndex, timeSpent, boosts });
   }
 
   activateBoost(pin, boostType, questionIndex) {
-    if (!this.socket) return;
+    if (!this.socket) this.connect();
     this.socket.emit("activate-boost", { pin, boostType, questionIndex });
   }
 
   // New method to request answer history
   requestAnswerHistory(pin, questionIndex) {
-    if (!this.socket) return;
+    if (!this.socket) this.connect();
     console.log("Requesting answer history for:", { pin, questionIndex });
     this.socket.emit("request-answer-history", { pin, questionIndex });
   }
@@ -158,6 +169,25 @@ class SocketService {
   on(event, callback) {
     if (this.callbacks.hasOwnProperty(event)) {
       this.callbacks[event] = callback;
+      return;
+    }
+    
+    // If it's not in our callbacks map, register directly with socket.io
+    if (this.socket) {
+      this.socket.on(event, callback);
+    }
+  }
+
+  // Add the off method to unregister event listeners
+  off(event, callback) {
+    if (this.callbacks.hasOwnProperty(event)) {
+      this.callbacks[event] = null;
+      return;
+    }
+    
+    // If it's not in our callbacks map, unregister directly with socket.io
+    if (this.socket) {
+      this.socket.off(event, callback);
     }
   }
 
@@ -167,6 +197,12 @@ class SocketService {
       this.socket.disconnect();
       this.socket = null;
     }
+  }
+
+  // Access the underlying socket directly when needed
+  getSocket() {
+    if (!this.socket) this.connect();
+    return this.socket;
   }
 }
 

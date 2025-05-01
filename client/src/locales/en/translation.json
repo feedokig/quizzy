@@ -1,0 +1,214 @@
+{
+    "navbar": {
+        "home": "Quizzy",
+        "dashboard": "Dashboard",
+        "createQuiz": "Create Quiz",
+        "profile": "Hi, {username}",
+        "logout": "Logout",
+        "login": "Login",
+        "register": "Register",
+        "language": "Language",
+        "loading": "Loading..."
+    },
+    "createQuiz": {
+        "title": "Create a new quiz",
+        "quizTitlePlaceholder": "The name of the quiz",
+        "addQuestionTitle": "Add a new question",
+        "editQuestionTitle": "Edit the question",
+        "questionPlaceholder": "The text of the question",
+        "optionPlaceholder": "Variant {index}",
+        "correctLabel": "Correct",
+        "addQuestionButton": "Add the question",
+        "saveChangesButton": "Save changes",
+        "cancelButton": "Cancel",
+        "questionsSectionTitle": "Added questions ({count})",
+        "noQuestions": "Questions have not yet been added. Create your first question!",
+        "submitButton": "Create a quiz",
+        "error": {
+            "fillAllFields": "Please fill out all the fields and select the correct answer",
+            "titleAndQuestionsRequired": "Please add a name and at least one question",
+            "unauthorized": "You must be authorized to create a quiz",
+            "createFailed": "The error of creating a quiz. Try again."
+        },
+        "success": {
+            "created": "Quiz has been successfully created!"
+        }
+    },
+    "editQuiz": {
+        "title": "Edit Quiz",
+        "quizTitlePlaceholder": "Quiz Title",
+        "addQuestionTitle": "Add New Question",
+        "editQuestionTitle": "Edit Question",
+        "questionPlaceholder": "Question text",
+        "optionPlaceholder": "Option {index}",
+        "correctLabel": "Correct",
+        "addQuestionButton": "Add Question",
+        "saveChangesButton": "Save Changes",
+        "cancelButton": "Cancel",
+        "questionsSectionTitle": "Questions ({count})",
+        "noQuestions": "No questions added yet. Create your first question!",
+        "submitButton": "Save Changes",
+        "questionNumber": "Question {number}",
+        "editButton": "Edit",
+        "deleteButton": "Delete",
+        "error": {
+            "fillAllFields": "Please fill all fields and select the correct answer",
+            "titleAndQuestionsRequired": "Please add a title and at least one question",
+            "unauthorized": "You must be logged in to edit a quiz",
+            "fetchFailed": "Error fetching quiz data",
+            "updateFailed": "Error updating quiz. Please try again."
+        },
+        "success": {
+            "updated": "Quiz updated successfully!"
+        }
+    },
+    "hostGame": {
+        "gamePin": "Game PIN: {pin}",
+        "quizTitle": "Quiz: {title}",
+        "playersSectionTitle": "Players ({current}/{max})",
+        "noPlayers": "Waiting for players to join...",
+        "waitingScreenTitle": "Waiting for players...",
+        "maxPlayersLabel": "Max players:",
+        "startButton": "Start Game",
+        "questionTitle": "Question {current} of {total}",
+        "nextQuestionButton": "Next Question →",
+        "finishQuizButton": "🏁 Finish Quiz",
+        "allAnsweredIndicator": "All Answered!",
+        "finalResultsTitle": "🏆 Quiz Over – Final Results",
+        "resultsInfo": "Players may be updating their scores with the Wheel of Fortune",
+        "backToDashboardButton": "🔁 Back to Dashboard",
+        "playerScore": "Score: {score}",
+        "loading": "Loading game...",
+        "error": {
+            "generic": "Failed to load game",
+            "notAuthenticated": "User not authenticated",
+            "invalidGameData": "Invalid game data received",
+            "gameNotFound": "Game not found",
+            "quizMissing": "Quiz data is missing"
+        }
+    },
+    "playerGame": {
+        "waiting": "Waiting for question...",
+        "questionCount": "Question {current} of {total}",
+        "scoreDisplay": "Your score: {score}",
+        "gameOver": "Game Over",
+        "finalScore": "Your final score: {score}",
+        "boost": {
+            "fiftyFiftyName": "50/50",
+            "fiftyFiftyIcon": "🛡️",
+            "used": "Used",
+            "active": "Active",
+            "available": "Available"
+        }
+    },
+    "answerHistoryModal": {
+        "title": "Question {number} - Answer Summary",
+        "playerColumn": "Player",
+        "answerColumn": "Answer",
+        "statusColumn": "Status",
+        "pointsColumn": "Points",
+        "correctStatus": "✓ Correct",
+        "wrongStatus": "✗ Wrong",
+        "noAnswers": "Everyone answered correctly",
+        "continueButton": "Continue to Next Question"
+    },
+    "login": {
+        "title": "Login to Quizzy",
+        "emailLabel": "Email",
+        "emailPlaceholder": "Enter your email",
+        "passwordLabel": "Password",
+        "passwordPlaceholder": "Enter your password",
+        "submit": "Login",
+        "submitting": "Logging in...",
+        "noAccount": "Don't have an account?",
+        "registerLink": "Register",
+        "error": {
+            "invalidCredentials": "Login failed",
+            "validation": {
+                "emailInvalid": "Invalid email address",
+                "emailRequired": "Email is required",
+                "passwordMin": "Password must be at least 6 characters",
+                "passwordRequired": "Password is required"
+            }
+        }
+    },
+    "register": {
+        "title": "Create an Account",
+        "usernameLabel": "Username",
+        "usernamePlaceholder": "Choose a username",
+        "emailLabel": "Email",
+        "emailPlaceholder": "Enter your email",
+        "passwordLabel": "Password",
+        "passwordPlaceholder": "Create a password",
+        "confirmPasswordLabel": "Confirm Password",
+        "confirmPasswordPlaceholder": "Confirm your password",
+        "submit": "Register",
+        "submitting": "Creating account...",
+        "haveAccount": "Already have an account?",
+        "loginLink": "Login",
+        "error": {
+            "registrationFailed": "Registration failed",
+            "validation": {
+                "usernameMin": "Username must be at least 3 characters",
+                "usernameMax": "Username must be less than 20 characters",
+                "usernameRequired": "Username is required",
+                "emailInvalid": "Invalid email address",
+                "emailRequired": "Email is required",
+                "passwordMin": "Password must be at least 6 characters",
+                "passwordRequired": "Password is required",
+                "confirmPasswordMatch": "Passwords must match",
+                "confirmPasswordRequired": "Confirm password is required"
+            }
+        }
+    },
+    "quizDetails": {
+        "loading": "Loading Quiz...",
+        "questionsSectionTitle": "Questions ({count})",
+        "noQuestions": "This quiz doesn't have any questions yet.",
+        "wheelEnabled": "\"Wheel of Fortune\" is activated for this quiz",
+        "editQuizButton": "Edit Quiz",
+        "backToDashboardButton": "Back to Dashboard",
+        "error": {
+            "unauthorized": "You must be logged in to view quiz details",
+            "fetchFailed": "Error fetching quiz details"
+        }
+    },
+    "joinGame": {
+        "title": "Join a Game",
+        "pinPlaceholder": "Enter Game PIN",
+        "nicknamePlaceholder": "Choose a nickname",
+        "joinButton": "Join",
+        "error": {
+            "emptyFields": "Please enter both PIN and nickname",
+            "failed": "Failed to join game. Please check the PIN and try again."
+        }
+    },
+    "dashboard": {
+        "title": "My Quizzes",
+        "createQuiz": "Create New Quiz",
+        "noQuizzes": "No quizzes yet",
+        "noQuizzesDescription": "Create your first quiz to get started!",
+        "hostGame": "Host Game",
+        "view": "View",
+        "edit": "Edit",
+        "delete": "Delete",
+        "questions": "questions",
+        "created": "Created",
+        "error": "Failed to fetch quizzes",
+        "deleteConfirm": "Are you sure you want to delete this quiz?",
+        "deleteSuccess": "Quiz deleted successfully",
+        "deleteFailed": "Failed to delete quiz",
+        "invalidGameData": "Invalid game data received",
+        "failedToCreateGame": "Failed to create game"
+    },
+    "gameResults": {
+        "title": "Quiz Over – Final Rankings",
+        "noResults": "No player data available",
+        "playAgain": "Back to Dashboard",
+        "points": "pts"
+    },
+    "languageToggle": {
+        "en": "EN",
+        "uk": "UA"
+    }
+}

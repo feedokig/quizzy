@@ -1,8 +1,10 @@
-// components/AnswerHistoryModal.jsx
-import React from "react";
-import "./AnswerHistoryModal.css";
+import React from 'react';
+import { useTranslation } from 'react-i18next';
+import './AnswerHistoryModal.css';
 
 const AnswerHistoryModal = ({ isOpen, onClose, players, currentQuestion }) => {
+  const { t } = useTranslation();
+
   if (!isOpen || !currentQuestion) return null;
 
   // Filter players who have answered this question - ensure we catch all answer formats
@@ -10,23 +12,23 @@ const AnswerHistoryModal = ({ isOpen, onClose, players, currentQuestion }) => {
     (player) => {
       // Check all possible ways an answer might be stored
       return (
-        typeof player.lastAnswer === "number" || 
+        typeof player.lastAnswer === 'number' || 
         player.answerIndex !== undefined ||
         (player.answer !== undefined)
       );
     }
   );
   
-  console.log("Modal received players:", players);
-  console.log("Filtered players with answers:", playersWithAnswers);
+  console.log('Modal received players:', players);
+  console.log('Filtered players with answers:', playersWithAnswers);
 
   return (
     <div className="answer-history-modal-overlay">
       <div className="answer-history-modal">
         <div className="modal-header">
-          <h2>Question {currentQuestion.number} - Answer Summary</h2>
+          <h2>{t('answerHistoryModal.title').replace('{number}', currentQuestion.number)}</h2>
           <button className="close-button" onClick={onClose}>
-            &times;
+            ×
           </button>
         </div>
 
@@ -40,10 +42,10 @@ const AnswerHistoryModal = ({ isOpen, onClose, players, currentQuestion }) => {
               <table className="answer-table">
                 <thead>
                   <tr>
-                    <th>Player</th>
-                    <th>Answer</th>
-                    <th>Status</th>
-                    <th>Points</th>
+                    <th>{t('answerHistoryModal.playerColumn')}</th>
+                    <th>{t('answerHistoryModal.answerColumn')}</th>
+                    <th>{t('answerHistoryModal.statusColumn')}</th>
+                    <th>{t('answerHistoryModal.pointsColumn')}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -64,19 +66,19 @@ const AnswerHistoryModal = ({ isOpen, onClose, players, currentQuestion }) => {
                       
                       const answerText = player.answerText || 
                         (currentQuestion.options && answerIndex !== undefined ? 
-                          currentQuestion.options[answerIndex] : "No answer");
+                          currentQuestion.options[answerIndex] : 'No answer');
                       
                       const points = player.pointsAwarded || player.lastPoints || 0;
                       
                       return (
                         <tr
                           key={player.id || player.socketId || player.playerId}
-                          className={isCorrect ? "correct-answer" : "wrong-answer"}
+                          className={isCorrect ? 'correct-answer' : 'wrong-answer'}
                         >
                           <td>{player.nickname}</td>
                           <td>{answerText}</td>
-                          <td className={`status ${isCorrect ? "correct" : "wrong"}`}>
-                            {isCorrect ? "✓ Correct" : "✗ Wrong"}
+                          <td className={`status ${isCorrect ? 'correct' : 'wrong'}`}>
+                            {isCorrect ? t('answerHistoryModal.correctStatus') : t('answerHistoryModal.wrongStatus')}
                           </td>
                           <td>{points} pts</td>
                         </tr>
@@ -85,15 +87,14 @@ const AnswerHistoryModal = ({ isOpen, onClose, players, currentQuestion }) => {
                 </tbody>
               </table>
             ) : (
-                //TODO: fix this - no players answered this question
-              <div className="no-answers">Everyone answered correctly</div>
+              <div className="no-answers">{t('answerHistoryModal.noAnswers')}</div>
             )}
           </div>
         </div>
 
         <div className="modal-footer">
           <button className="continue-button" onClick={onClose}>
-            Continue to Next Question
+            {t('answerHistoryModal.continueButton')}
           </button>
         </div>
       </div>

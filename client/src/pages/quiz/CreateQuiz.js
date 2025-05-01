@@ -1,26 +1,26 @@
-// client/src/pages/quiz/CreateQuiz.js
-import React, { useState } from "react";
-import { useNavigate } from "react-router-dom";
-import axios from "axios";
-import "./CreateQuiz.css";
+import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import axios from 'axios';
+import { useTranslation } from 'react-i18next';
+import './CreateQuiz.css';
 
 const CreateQuiz = () => {
+  const { t } = useTranslation();
   const navigate = useNavigate();
-  const [alert, setAlert] = useState({ show: false, message: "", type: "" });
+  const [alert, setAlert] = useState({ show: false, message: '', type: '' });
   const [quizData, setQuizData] = useState({
-    title: "",
+    title: '',
     questions: [],
     wheelEnabled: true,
   });
 
   const [editIndex, setEditIndex] = useState(null);
   const [currentQuestion, setCurrentQuestion] = useState({
-    question: "",
-    options: ["", "", "", ""],
+    question: '',
+    options: ['', '', '', ''],
     correctAnswer: null,
   });
 
-  // Function to add a question to the quiz
   const addQuestion = (e) => {
     e.preventDefault();
     if (
@@ -30,13 +30,12 @@ const CreateQuiz = () => {
     ) {
       setAlert({
         show: true,
-        message: "Please fill out all the fields and select the correct answer",
-        type: "error",
+        message: t('createQuiz.error.fillAllFields'),
+        type: 'error',
       });
       return;
     }
 
-    // If we're editing an existing question
     if (editIndex !== null) {
       const updatedQuestions = [...quizData.questions];
       updatedQuestions[editIndex] = { ...currentQuestion };
@@ -47,52 +46,49 @@ const CreateQuiz = () => {
       }));
       setEditIndex(null);
     } else {
-      // Adding a new question
       setQuizData((prev) => ({
         ...prev,
         questions: [...prev.questions, { ...currentQuestion }],
       }));
     }
 
-    // Reset current question form
     setCurrentQuestion({
-      question: "",
-      options: ["", "", "", ""],
+      question: '',
+      options: ['', '', '', ''],
       correctAnswer: null,
     });
   };
 
-  // Function to handle form submission
   const handleSubmit = async (e) => {
     e.preventDefault();
 
     if (!quizData.title || quizData.questions.length === 0) {
       setAlert({
         show: true,
-        message: "Please add a name and at least one question",
-        type: "error",
+        message: t('createQuiz.error.titleAndQuestionsRequired'),
+        type: 'error',
       });
       return;
     }
 
     try {
-      const token = localStorage.getItem("token");
+      const token = localStorage.getItem('token');
       if (!token) {
         setAlert({
           show: true,
-          message: "You must be authorized to create a quiz",
-          type: "error",
+          message: t('createQuiz.error.unauthorized'),
+          type: 'error',
         });
         return;
       }
 
       const response = await axios.post(
-        "http://localhost:5000/api/quiz",
+        'http://localhost:5000/api/quiz',
         quizData,
         {
           headers: {
-            "Content-Type": "application/json",
-            "x-auth-token": token,
+            'Content-Type': 'application/json',
+            'x-auth-token': token,
           },
         }
       );
@@ -100,41 +96,36 @@ const CreateQuiz = () => {
       if (response.data) {
         setAlert({
           show: true,
-          message: "Quiz has been successfully created!",
-          type: "success",
+          message: t('createQuiz.success.created'),
+          type: 'success',
         });
 
-        // Clear form data
         setQuizData({
-          title: "",
+          title: '',
           questions: [],
           wheelEnabled: true,
         });
 
-        // Redirect to dashboard after 1.5 seconds
         setTimeout(() => {
-          navigate("/dashboard");
+          navigate('/dashboard');
         }, 1500);
       }
     } catch (error) {
-      console.error("Error creating quiz:", error);
+      console.error('Error creating quiz:', error);
       setAlert({
         show: true,
         message:
-          error.response?.data?.message ||
-          "The error of creating a quiz. Try again.",
-        type: "error",
+          error.response?.data?.message || t('createQuiz.error.createFailed'),
+        type: 'error',
       });
     }
   };
 
-  // Function to edit a question
   const handleEditQuestion = (index) => {
     setCurrentQuestion({ ...quizData.questions[index] });
     setEditIndex(index);
   };
 
-  // Function to delete a question
   const handleDeleteQuestion = (index) => {
     const updatedQuestions = quizData.questions.filter((_, i) => i !== index);
     setQuizData((prev) => ({
@@ -143,7 +134,6 @@ const CreateQuiz = () => {
     }));
   };
 
-  // Alert component
   const Alert = ({ type, message }) => (
     <div className={`alert alert-${type}`}>{message}</div>
   );
@@ -151,7 +141,7 @@ const CreateQuiz = () => {
   return (
     <div className="create-quiz-container">
       <div className="create-quiz-form">
-        <h1>Create a new quiz</h1>
+        <h1>{t('createQuiz.title')}</h1>
 
         {alert.show && <Alert type={alert.type} message={alert.message} />}
 
@@ -160,7 +150,7 @@ const CreateQuiz = () => {
             <input
               type="text"
               className="quiz-title-input"
-              placeholder="The name of the quiz"
+              placeholder={t('createQuiz.quizTitlePlaceholder')}
               value={quizData.title}
               onChange={(e) =>
                 setQuizData({ ...quizData, title: e.target.value })
@@ -171,13 +161,13 @@ const CreateQuiz = () => {
 
           <div className="question-form">
             <h2>
-              {editIndex !== null ? "Edit the question" : "Add a new question"}
+              {editIndex !== null ? t('createQuiz.editQuestionTitle') : t('createQuiz.addQuestionTitle')}
             </h2>
 
             <div className="form-group">
               <textarea
                 className="question-input"
-                placeholder="The text of the question"
+                placeholder={t('createQuiz.questionPlaceholder')}
                 value={currentQuestion.question}
                 onChange={(e) =>
                   setCurrentQuestion({
@@ -193,7 +183,7 @@ const CreateQuiz = () => {
                 <div key={index} className="option-row">
                   <input
                     type="text"
-                    placeholder={`Variant ${index + 1}`}
+                    placeholder={t('createQuiz.optionPlaceholder').replace('{index}', index + 1)}
                     value={option}
                     onChange={(e) => {
                       const newOptions = [...currentQuestion.options];
@@ -217,7 +207,7 @@ const CreateQuiz = () => {
                         })
                       }
                     />
-                    <span>Correct</span>
+                    <span>{t('createQuiz.correctLabel')}</span>
                   </label>
                 </div>
               ))}
@@ -228,7 +218,7 @@ const CreateQuiz = () => {
               className="add-question-btn"
               onClick={addQuestion}
             >
-              {editIndex !== null ? "Save changes" : "Add the question"}
+              {editIndex !== null ? t('createQuiz.saveChangesButton') : t('createQuiz.addQuestionButton')}
             </button>
 
             {editIndex !== null && (
@@ -238,25 +228,23 @@ const CreateQuiz = () => {
                 onClick={() => {
                   setEditIndex(null);
                   setCurrentQuestion({
-                    question: "",
-                    options: ["", "", "", ""],
+                    question: '',
+                    options: ['', '', '', ''],
                     correctAnswer: null,
                   });
                 }}
               >
-                Cancel
+                {t('createQuiz.cancelButton')}
               </button>
             )}
           </div>
 
           <div className="questions-preview">
-            <h2>Added questions ({quizData.questions.length})</h2>
+            <h2>{t('createQuiz.questionsSectionTitle').replace('{count}', quizData.questions.length)}</h2>
 
             {quizData.questions.length === 0 ? (
               <div className="empty-questions">
-                <p>
-                  Questions have not yet been added. Create your first question!
-                </p>
+                <p>{t('createQuiz.noQuestions')}</p>
               </div>
             ) : (
               <div className="questions-list">
@@ -264,7 +252,7 @@ const CreateQuiz = () => {
                   <div key={idx} className="question-card">
                     <div className="question-content">
                       <span className="question-number">
-                        Question {idx + 1}
+                        {t('editQuiz.questionNumber').replace('{number}', idx + 1)}
                       </span>
                       <p className="question-text">{q.question}</p>
 
@@ -272,14 +260,10 @@ const CreateQuiz = () => {
                         {q.options.map((opt, optIdx) => (
                           <div
                             key={optIdx}
-                            className={`option-item ${
-                              optIdx === q.correctAnswer ? "correct" : ""
-                            }`}
+                            className={`option-item ${optIdx === q.correctAnswer ? 'correct' : ''}`}
                           >
-                            {opt}{" "}
-                            {optIdx === q.correctAnswer && (
-                              <span className="correct-badge">✓</span>
-                            )}
+                            {opt}
+                            {optIdx === q.correctAnswer && <span className="correct-badge">✓</span>}
                           </div>
                         ))}
                       </div>
@@ -291,14 +275,14 @@ const CreateQuiz = () => {
                         className="edit-btn"
                         onClick={() => handleEditQuestion(idx)}
                       >
-                        ✏️ Edit
+                        ✏️ {t('editQuiz.editButton')}
                       </button>
                       <button
                         type="button"
                         className="delete-btn"
                         onClick={() => handleDeleteQuestion(idx)}
                       >
-                        ❌ Delete
+                        ❌ {t('editQuiz.deleteButton')}
                       </button>
                     </div>
                   </div>
@@ -308,7 +292,7 @@ const CreateQuiz = () => {
           </div>
 
           <button type="submit" className="create-quiz-btn">
-            Create a quiz{" "}
+            {t('createQuiz.submitButton')}
           </button>
         </form>
       </div>

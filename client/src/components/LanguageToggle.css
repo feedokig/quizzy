@@ -1,0 +1,24 @@
+.language-toggle {
+    display: flex;
+    gap: 10px;
+    margin: 10px;
+  }
+  
+  .language-toggle button {
+    padding: 8px 16px;
+    border: 1px solid #ccc;
+    background-color: #007bff;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: background-color 0.3s;
+  }
+  
+  .language-toggle button.active {
+    background-color: #4d4d4d;
+    color: rgb(139, 139, 139);
+    border-color: #007bff;
+  }
+  
+  .language-toggle button:hover {
+    background-color: #f0f0f0;
+  }
