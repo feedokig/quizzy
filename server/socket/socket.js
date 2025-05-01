@@ -4,12 +4,14 @@ const Player = require("../models/Player");
 
 module.exports = (io) => {
   const activeGames = new Map();
+  // Track socket IDs that have already joined a game
+  const joinedSockets = new Set();
 
   io.on("connection", (socket) => {
     socket.on("host-join", async ({ pin, gameId }) => {
       try {
         const game = await Game.findById(gameId).populate("quiz");
-        console.log("Game loaded:", game); // Для отладки
+        console.log("Game loaded:", game);
 
         if (game) {
           socket.join(pin);
@@ -41,8 +43,8 @@ module.exports = (io) => {
         activeGames.set(game.pin, {
           gameId: game._id,
           hostId,
-          players: [],
-          maxPlayers: maxPlayers, // Store the limit in active games
+          players: new Map(),
+          maxPlayers: maxPlayers,
           currentQuestion: 0,
           isActive: true,
           results: [],
@@ -60,44 +62,83 @@ module.exports = (io) => {
       }
     });
 
+    socket.on("update-max-players", async ({ pin, maxPlayers }) => {
+      try {
+        console.log(`Updating max players for game ${pin} to ${maxPlayers}`);
+        const game = await Game.findOne({ pin });
+        
+        if (!game) {
+          socket.emit("game-error", { message: "Game not found" });
+          return;
+        }
+        
+        // Update the max players
+        game.maxPlayers = maxPlayers;
+        await game.save();
+        
+        // Update activeGames map if exists
+        if (activeGames.has(pin)) {
+          activeGames.get(pin).maxPlayers = maxPlayers;
+        }
+        
+        // Broadcast to all players in the game
+        io.to(pin).emit("max-players-updated", { maxPlayers });
+        
+        console.log(`Max players updated for game ${pin} to ${maxPlayers}`);
+      } catch (error) {
+        console.error("Update max players error:", error);
+        socket.emit("game-error", { message: "Failed to update max players" });
+      }
+    });
+
     socket.on("player-join", async ({ pin, nickname }) => {
       try {
+        // Check if this socket has already joined
+        const socketKey = `${socket.id}:${pin}`;
+        if (joinedSockets.has(socketKey)) {
+          console.log(`Socket ${socket.id} already joined game ${pin}`);
+          return;
+        }
+
         const game = await Game.findOne({ pin }).populate("quiz");
         if (!game) {
           socket.emit("join-error", { message: "Game not found" });
           return;
         }
-
+    
         // Check if game is at max capacity
         if (game.maxPlayers && game.players.length >= game.maxPlayers) {
           socket.emit("join-error", { message: "Game is full" });
           return;
         }
 
-        // Проверяем, существует ли уже игрок с таким nickname
+        // Check if a player with this nickname already exists
         const existingPlayerIndex = game.players.findIndex(
           (p) => p.nickname === nickname
         );
 
         if (existingPlayerIndex !== -1) {
-          // Обновляем socketId существующего игрока
+          // Update existing player's socketId
           game.players[existingPlayerIndex].socketId = socket.id;
           game.players[existingPlayerIndex].id = socket.id;
 
-          // Явно указываем mongoose, что массив был изменен
+          // Mark mongoose array as modified
           game.markModified("players");
           await game.save();
 
-          // Присоединяем к комнате
+          // Join the room
           socket.join(pin);
 
-          // Обновляем activeGames Map, если она уже существует
+          // Update activeGames Map if it exists
           if (activeGames.has(pin)) {
             const existingPlayer = game.players[existingPlayerIndex];
             activeGames.get(pin).players.set(socket.id, existingPlayer);
           }
 
-          // Отправляем существующий счет игроку
+          // Mark this socket as joined
+          joinedSockets.add(socketKey);
+
+          // Send existing score to player
           socket.emit("player-rejoined", {
             score: game.players[existingPlayerIndex].score || 0,
           });
@@ -108,7 +149,7 @@ module.exports = (io) => {
             }`
           );
         } else {
-          // Create new player...
+          // Create new player
           const player = {
             id: socket.id,
             socketId: socket.id,
@@ -121,7 +162,7 @@ module.exports = (io) => {
           game.markModified("players");
           await game.save();
 
-          // Join socket to room...
+          // Join socket to room
           socket.join(pin);
 
           // Update activeGames Map
@@ -129,16 +170,19 @@ module.exports = (io) => {
             activeGames.set(pin, {
               gameId: game._id,
               players: new Map(),
-              maxPlayers: game.maxPlayers || 10, // Default to 10 if not set
+              maxPlayers: game.maxPlayers || 10,
               correctAnswersCount: {},
             });
           }
           activeGames.get(pin).players.set(socket.id, player);
 
+          // Mark this socket as joined
+          joinedSockets.add(socketKey);
+
           console.log(`Player ${nickname} joined game ${pin}`);
         }
 
-        // Emit player joined event в любом случае
+        // Emit player joined event in any case
         io.to(pin).emit("player-joined", { players: game.players });
       } catch (error) {
         console.error("Join error:", error);
@@ -310,14 +354,14 @@ module.exports = (io) => {
           const game = await Game.findOne({ pin }).populate("quiz");
           if (!game || !game.isActive) return;
 
-          // Находим индекс игрока вместо прямой ссылки
+          // Find player index instead of direct reference
           const playerIndex = game.players.findIndex(
             (p) => p.socketId === socket.id || p.id === socket.id
           );
 
           if (playerIndex === -1) return;
 
-          // Получаем ссылку на игрока
+          // Get player reference
           const player = game.players[playerIndex];
 
           // Save the player's answer
@@ -371,10 +415,10 @@ module.exports = (io) => {
             }
             player.score += points;
 
-            // Явно обновляем игрока в массиве game.players
+            // Update player in the game.players array
             game.players[playerIndex] = player;
 
-            // Указываем Mongoose, что массив players был изменен
+            // Mark mongoose array as modified
             game.markModified("players");
 
             console.log(
@@ -505,11 +549,18 @@ module.exports = (io) => {
         game.results = results;
         await game.save();
 
-        // Оповещаем всех игроков о завершении викторины
+        // Notify all players about game ending
         io.to(pin).emit("quiz:finished", {
           gameId,
           pin,
         });
+
+        // Clean up joined sockets for this game
+        for (const key of joinedSockets.keys()) {
+          if (key.endsWith(`:${pin}`)) {
+            joinedSockets.delete(key);
+          }
+        }
 
         console.log(`Game ${pin} has ended`);
       } catch (error) {
@@ -551,6 +602,10 @@ module.exports = (io) => {
           const activeGame = activeGames.get(gamePin);
           activeGame.players.delete(socket.id);
         }
+
+        // Remove socket from joined sockets tracker
+        const socketKey = `${socket.id}:${gamePin}`;
+        joinedSockets.delete(socketKey);
 
         console.log(`Player disconnected from game ${gamePin}`);
       } catch (error) {
