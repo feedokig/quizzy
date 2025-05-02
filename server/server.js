@@ -38,6 +38,10 @@ app.use(
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 
+app.get("/", (req, res) => {
+  res.status(200).send("hello from backend");
+});
+
 // Routes
 app.use("/api/auth", authRoutes); // Регистрация маршрутов аутентификации
 app.use("/api/quiz", require("./routes/quiz"));
