@@ -122,13 +122,13 @@ io.on("connection", (socket) => {
     }
   });
 
-  socket.on('get-player-score', async ({ pin, nickname }) => {
+  socket.on("get-player-score", async ({ pin, nickname }) => {
     const game = await Game.findOne({ pin });
     if (!game || !game.players) return;
-  
-    const player = game.players.find(p => p.nickname === nickname);
+
+    const player = game.players.find((p) => p.nickname === nickname);
     if (player) {
-      socket.emit('player-score', player.score || 0);
+      socket.emit("player-score", player.score || 0);
     }
   });
 
@@ -153,12 +153,20 @@ io.on("connection", (socket) => {
 
 // Подключение к MongoDB
 mongoose
-  .connect(process.env.MONGODB_URI || "mongodb://localhost:27017/quizzy", {
+  .connect(process.env.MONGODB_URI, {
     useNewUrlParser: true,
     useUnifiedTopology: true,
   })
-  .then(() => console.log("MongoDB connected"))
-  .catch((err) => console.error("MongoDB connection error:", err));
+  .then(() => {
+    console.log("MongoDB connected");
+
+    // Теперь запускаем сервер только после подключения к БД
+    server.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+  })
+  .catch((err) => {
+    console.error("MongoDB connection error:", err);
+    process.exit(1); // Завершаем процесс если не удалось подключиться
+  });
 
 // Настройка для продакшена
 if (process.env.NODE_ENV === "production") {
@@ -177,7 +185,7 @@ app.use((err, req, res, next) => {
 
 // Запуск сервера
 const PORT = process.env.PORT || 5000;
-server.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+//server.listen(PORT, () => console.log(`Server running on port ${PORT}`));
 
 /*const authController = require("./controllers/authController");
 const auth = require("./middleware/auth");
