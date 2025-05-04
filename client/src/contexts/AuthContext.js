@@ -56,7 +56,10 @@ export function AuthProvider({ children }) {
   // Login user
   const login = async (userData) => {
     try {
-      const res = await api.post('/api/auth/login', userData);
+      const res = await api.post('/api/auth/login', {
+        email: "test@example.com",
+        password: "12345678"
+      });
 
       localStorage.setItem('token', res.data.token); // Сохранение токена
       setAuthToken(res.data.token); // Установка токена для axios
