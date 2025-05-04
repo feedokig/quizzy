@@ -122,11 +122,11 @@ io.on("connection", (socket) => {
     }
   });
 
-  socket.on('get-player-score', ({ pin, nickname }) => {
-    const game = games[pin];
-    if (!game) return;
+  socket.on('get-player-score', async ({ pin, nickname }) => {
+    const game = await Game.findOne({ pin });
+    if (!game || !game.players) return;
   
-    const player = game.players[nickname];
+    const player = game.players.find(p => p.nickname === nickname);
     if (player) {
       socket.emit('player-score', player.score || 0);
     }
@@ -179,11 +179,10 @@ app.use((err, req, res, next) => {
 const PORT = process.env.PORT || 5000;
 server.listen(PORT, () => console.log(`Server running on port ${PORT}`));
 
-// Добавление маршрутов аутентификации
-const authController = require("./controllers/authController");
+/*const authController = require("./controllers/authController");
 const auth = require("./middleware/auth");
 const router = express.Router();
 
 router.post("/register", authController.register);
 router.post("/login", authController.login);
-router.get("/me", auth, authController.getMe);
+router.get("/me", auth, authController.getMe); */
