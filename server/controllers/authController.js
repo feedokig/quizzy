@@ -58,7 +58,7 @@ exports.register = async (req, res) => {
 // Вход пользователя
 exports.login = async (req, res) => {
   try {
-    console.log('Login attempt:', req.body); // Отладочный вывод
+    console.log('Login attempt:', req.body);
     const { email, password } = req.body;
 
     if (!email || !password) {
@@ -72,8 +72,8 @@ exports.login = async (req, res) => {
     }
 
     const isMatch = await bcrypt.compare(password, user.password);
+    console.log('Password match:', isMatch); // Добавьте эту строку
     if (!isMatch) {
-      console.log('Password mismatch for:', email);
       return res.status(400).json({ message: 'Invalid credentials' });
     }
 
