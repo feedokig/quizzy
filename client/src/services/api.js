@@ -2,8 +2,8 @@
 import axios from 'axios';
 
 const api = axios.create({
-  baseURL: process.env.REACT_APP_API_URL, // или process.env.REACT_APP_API_URL
-  withCredentials: true, // если используешь куки (не обязательно)
+  baseURL: process.env.REACT_APP_API_URL || 'https://quizzy-olive.vercel.app',
+  withCredentials: true,
 });
 
 export default api;
