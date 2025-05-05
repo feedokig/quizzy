@@ -78,12 +78,15 @@ exports.login = async (req, res) => {
       return res.status(400).json({ message: 'Email and password are required' });
     }
 
+    // Нормализация email (приведение к нижнему регистру)
+    const normalizedEmail = email.toLowerCase().trim();
+
     // Поиск пользователя
-    const user = await User.findOne({ email });
-    console.log('Found user:', user ? 'Yes' : 'No'); // Более безопасное логирование
+    const user = await User.findOne({ email: normalizedEmail });
+    console.log('Found user:', user ? 'Yes' : 'No');
 
     if (!user) {
-      console.log('User not found:', email);
+      console.log('User not found:', normalizedEmail);
       return res.status(400).json({ message: 'Invalid credentials' });
     }
 
@@ -98,11 +101,12 @@ exports.login = async (req, res) => {
     // Генерация токена
     const token = generateToken(user);
     
-    // Устанавливаем cookie если используете cookies
+    // Устанавливаем cookie с правильными настройками для cross-domain
     if (res.cookie) {
       res.cookie('token', token, {
         httpOnly: true,
         secure: process.env.NODE_ENV === 'production',
+        sameSite: 'none', // Важно для cross-site запросов
         maxAge: 7 * 24 * 60 * 60 * 1000 // 7 дней
       });
     }
