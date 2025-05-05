@@ -30,26 +30,11 @@ const io = socketIo(server, {
 // Middleware
 app.use(
   cors({
-    origin: process.env.NODE_ENV === 'production' 
-      ? ['https://quizzy-olive.vercel.app', 'https://quizzy-sandy-six.vercel.app'] 
-      : 'http://localhost:3000',
+    origin: process.env.CLIENT_URL || "http://localhost:3000",
     methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     credentials: true,
-    allowedHeaders: ["Content-Type", "Authorization", "x-auth-token"]
   })
 );
-app.use(express.json());
-app.use(express.urlencoded({ extended: false }));
-
-// Add a diagnostic endpoint
-app.get("/api/config", (req, res) => {
-  res.json({ 
-    env: process.env.NODE_ENV,
-    mongoConnected: mongoose.connection.readyState === 1,
-    clientUrl: process.env.CLIENT_URL || 'Not set'
-  });
-});
-
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 

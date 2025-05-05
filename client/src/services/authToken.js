@@ -1,26 +1,17 @@
 // client/src/services/authToken.js
 import api from './api';
 
-// Set token in axios defaults and localStorage
+// Set auth token to headers
 export const setAuthToken = (token) => {
   if (token) {
-    localStorage.setItem('token', token);
     api.defaults.headers.common['x-auth-token'] = token;
-    api.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+  } else {
+    delete api.defaults.headers.common['x-auth-token'];
   }
 };
 
-// Remove token from axios defaults and localStorage
+// Remove auth token from headers
 export const removeAuthToken = () => {
-  localStorage.removeItem('token');
   delete api.defaults.headers.common['x-auth-token'];
-  delete api.defaults.headers.common['Authorization'];
-};
-
-// Check if token exists and set it
-export const initializeAuthToken = () => {
-  const token = localStorage.getItem('token');
-  if (token) {
-    setAuthToken(token);
-  }
+  localStorage.removeItem('token');
 };
