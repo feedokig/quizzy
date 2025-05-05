@@ -1,14 +1,14 @@
 // server/controllers/authController.js
-const User = require("../models/User");
-const jwt = require("jsonwebtoken");
-const bcrypt = require("bcryptjs");
+const User = require('../models/User');
+const jwt = require('jsonwebtoken');
+const bcrypt = require('bcryptjs');
 
 // Генерация JWT токена
 const generateToken = (user) => {
   return jwt.sign(
     { id: user._id, username: user.username },
-    process.env.JWT_SECRET || "your_jwt_secret",
-    { expiresIn: "7d" }
+    process.env.JWT_SECRET || 'your_jwt_secret',
+    { expiresIn: '7d' }
   );
 };
 
@@ -24,16 +24,13 @@ exports.register = async (req, res) => {
 
     if (existingUser) {
       return res.status(400).json({
-        message: "User with this email or username already exists",
+        message: 'User with this email or username already exists',
       });
     }
 
     // Хэшируем пароль
     const salt = await bcrypt.genSalt(10);
     const hashedPassword = await bcrypt.hash(password, salt);
-
-    console.log("Registering user with email:", email);
-    console.log("Hashed password:", hashedPassword); // Проверка хэшированного пароля
 
     // Создаем нового пользователя
     const user = new User({
@@ -45,7 +42,7 @@ exports.register = async (req, res) => {
     await user.save();
 
     res.status(201).json({
-      message: "User registered successfully",
+      message: 'User registered successfully',
       user: {
         id: user.id,
         username: user.username,
@@ -53,8 +50,8 @@ exports.register = async (req, res) => {
       },
     });
   } catch (error) {
-    console.error("Registration error:", error);
-    res.status(500).json({ message: "Server error" });
+    console.error('Registration error:', error);
+    res.status(500).json({ message: 'Server error' });
   }
 };
 
@@ -67,20 +64,15 @@ exports.login = async (req, res) => {
     const user = await User.findOne({ email });
 
     if (!user) {
-      return res.status(400).json({ message: "Invalid credentials" });
+      return res.status(400).json({ message: 'Invalid credentials' });
     }
 
     // Проверяем пароль
     const isMatch = await bcrypt.compare(password, user.password);
 
     if (!isMatch) {
-      return res.status(400).json({ message: "Invalid credentials" });
+      return res.status(400).json({ message: 'Invalid credentials' });
     }
-
-    console.log("Login attempt for email:", email);
-    console.log("Stored password:", user.password); // Проверка сохранённого пароля в базе
-    console.log("Comparing password:", password); // Логируем введённый пароль для сравнения
-    console.log("Password match result:", isMatch); // Логируем результат сравнения
 
     // Генерируем токен
     const token = generateToken(user);
@@ -94,24 +86,24 @@ exports.login = async (req, res) => {
       },
     });
   } catch (error) {
-    console.error("Login error:", error);
-    res.status(500).json({ message: "Server error" });
+    console.error('Login error:', error);
+    res.status(500).json({ message: 'Server error' });
   }
 };
 
 // Получение данных о пользователе
 exports.getMe = async (req, res) => {
   try {
-    const user = await User.findById(req.user.id).select("-password");
+    const user = await User.findById(req.user.id).select('-password');
 
     if (!user) {
-      return res.status(404).json({ message: "User not found" });
+      return res.status(404).json({ message: 'User not found' });
     }
 
     res.json(user);
   } catch (error) {
-    console.error("Get user error:", error);
-    res.status(500).json({ message: "Server error" });
+    console.error('Get user error:', error);
+    res.status(500).json({ message: 'Server error' });
   }
 };
 
@@ -122,20 +114,20 @@ exports.updatePassword = async (req, res) => {
   try {
     const user = await User.findById(req.user.id);
     if (!user) {
-      return res.status(404).json({ message: "User not found" });
+      return res.status(404).json({ message: 'User not found' });
     }
 
     const isMatch = await bcrypt.compare(currentPassword, user.password);
     if (!isMatch) {
-      return res.status(401).json({ message: "Current password is incorrect" });
+      return res.status(401).json({ message: 'Current password is incorrect' });
     }
 
     user.password = await bcrypt.hash(newPassword, 10);
     await user.save();
 
-    res.status(200).json({ message: "Password updated successfully" });
+    res.status(200).json({ message: 'Password updated successfully' });
   } catch (error) {
     console.error(error);
-    res.status(500).json({ message: "Server error" });
+    res.status(500).json({ message: 'Server error' });
   }
 };

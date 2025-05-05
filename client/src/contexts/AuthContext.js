@@ -56,19 +56,18 @@ export function AuthProvider({ children }) {
   // Login user
   const login = async (userData) => {
     try {
-      const res = await api.post('/api/auth/login', {
-        email: "test@example.com",
-        password: "12345678"
-      });
+      // Use the provided credentials instead of hardcoded ones
+      const res = await api.post('/api/auth/login', userData);
 
-      localStorage.setItem('token', res.data.token); // Сохранение токена
-      setAuthToken(res.data.token); // Установка токена для axios
+      localStorage.setItem('token', res.data.token);
+      setAuthToken(res.data.token);
       setUser(res.data.user);
       setIsAuthenticated(true);
       setError(null);
 
       return res.data;
     } catch (err) {
+      console.error('Login error:', err);
       setError(err.response?.data?.message || 'Login failed');
       throw err;
     }
