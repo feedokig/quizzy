@@ -41,8 +41,21 @@ exports.register = async (req, res) => {
 
     await user.save();
 
+    // Генерируем токен для нового пользователя
+    const token = generateToken(user);
+
+    // Устанавливаем cookie если используете cookies
+    if (res.cookie) {
+      res.cookie('token', token, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        maxAge: 7 * 24 * 60 * 60 * 1000 // 7 дней
+      });
+    }
+
     res.status(201).json({
       message: 'User registered successfully',
+      token,
       user: {
         id: user.id,
         username: user.username,
@@ -65,20 +78,35 @@ exports.login = async (req, res) => {
       return res.status(400).json({ message: 'Email and password are required' });
     }
 
+    // Поиск пользователя
     const user = await User.findOne({ email });
-    console.log('Found user:', user); // Логируем найденного пользователя
+    console.log('Found user:', user ? 'Yes' : 'No'); // Более безопасное логирование
+
     if (!user) {
       console.log('User not found:', email);
       return res.status(400).json({ message: 'Invalid credentials' });
     }
 
+    // Проверка пароля
     const isMatch = await bcrypt.compare(password, user.password);
-    console.log('Password match:', isMatch); // Логируем результат сравнения пароля
+    console.log('Password match:', isMatch);
+    
     if (!isMatch) {
       return res.status(400).json({ message: 'Invalid credentials' });
     }
 
+    // Генерация токена
     const token = generateToken(user);
+    
+    // Устанавливаем cookie если используете cookies
+    if (res.cookie) {
+      res.cookie('token', token, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        maxAge: 7 * 24 * 60 * 60 * 1000 // 7 дней
+      });
+    }
+
     res.json({
       token,
       user: { id: user.id, username: user.username, email: user.email },
@@ -92,6 +120,7 @@ exports.login = async (req, res) => {
 // Получение данных о пользователе
 exports.getMe = async (req, res) => {
   try {
+    // req.user.id установлен в middleware
     const user = await User.findById(req.user.id).select('-password');
 
     if (!user) {
@@ -120,7 +149,8 @@ exports.updatePassword = async (req, res) => {
       return res.status(401).json({ message: 'Current password is incorrect' });
     }
 
-    user.password = await bcrypt.hash(newPassword, 10);
+    const salt = await bcrypt.genSalt(10);
+    user.password = await bcrypt.hash(newPassword, salt);
     await user.save();
 
     res.status(200).json({ message: 'Password updated successfully' });

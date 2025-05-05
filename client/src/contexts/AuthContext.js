@@ -18,17 +18,24 @@ export function AuthProvider({ children }) {
   // Load user on initial render if token exists
   useEffect(() => {
     const loadUser = async () => {
-      if (localStorage.token) {
-        setAuthToken(localStorage.token);
+      // Проверяем токен в localStorage
+      const token = localStorage.getItem('token');
+      if (token) {
+        setAuthToken(token);
         try {
+          console.log('Attempting to load user with token');
           const res = await api.get('/api/auth/me');
+          console.log('User loaded successfully:', res.data);
           setUser(res.data);
           setIsAuthenticated(true);
         } catch (err) {
+          console.error('Failed to load user:', err.response?.data || err.message);
           removeAuthToken();
           setUser(null);
           setIsAuthenticated(false);
         }
+      } else {
+        console.log('No token found in localStorage');
       }
       setLoading(false);
     };
@@ -39,15 +46,22 @@ export function AuthProvider({ children }) {
   // Register user
   const register = async (userData) => {
     try {
+      console.log('Registering user:', { ...userData, password: '[HIDDEN]' });
       const res = await api.post('/api/auth/register', userData);
-      localStorage.setItem('token', res.data.token);
-      setAuthToken(res.data.token);
-      setUser(res.data.user);
-      setIsAuthenticated(true);
-      setError(null);
-      return res.data;
+      
+      if (res.data && res.data.token) {
+        localStorage.setItem('token', res.data.token);
+        setAuthToken(res.data.token);
+        setUser(res.data.user);
+        setIsAuthenticated(true);
+        setError(null);
+        console.log('Registration successful:', { user: res.data.user });
+        return res.data;
+      } else {
+        throw new Error('No token received from registration');
+      }
     } catch (err) {
-      console.log(err.message)
+      console.error('Registration error:', err.response?.data || err.message);
       setError(err.response?.data?.message || 'Registration failed');
       throw err;
     }
@@ -56,21 +70,26 @@ export function AuthProvider({ children }) {
   // Login user
   const login = async (userData) => {
     try {
-      console.log('Login data:', userData); // Отладочный вывод
+      console.log('Login attempt:', { email: userData.email, password: '[HIDDEN]' });
+      
       const res = await api.post('/api/auth/login', {
         email: userData.email,
         password: userData.password,
       });
-  
-      localStorage.setItem('token', res.data.token);
-      setAuthToken(res.data.token);
-      setUser(res.data.user);
-      setIsAuthenticated(true);
-      setError(null);
-  
-      return res.data;
+      
+      if (res.data && res.data.token) {
+        localStorage.setItem('token', res.data.token);
+        setAuthToken(res.data.token);
+        setUser(res.data.user);
+        setIsAuthenticated(true);
+        setError(null);
+        console.log('Login successful:', { user: res.data.user });
+        return res.data;
+      } else {
+        throw new Error('No token received from login');
+      }
     } catch (err) {
-      console.error('Login error:', err.response?.data);
+      console.error('Login error:', err.response?.data || err.message);
       setError(err.response?.data?.message || 'Login failed');
       throw err;
     }
@@ -79,30 +98,22 @@ export function AuthProvider({ children }) {
   // Update password
   const updatePassword = async (currentPassword, newPassword) => {
     try {
-      const token = localStorage.getItem('token'); // Получение токена из localStorage
-      if (!token) {
-        throw new Error('No token found. Please log in again.');
-      }
-
+      console.log('Updating password');
       const res = await api.post(
         '/api/auth/update-password',
-        { currentPassword, newPassword },
-        {
-          headers: {
-            Authorization: `Bearer ${token}`, // Передача токена
-          },
-        }
+        { currentPassword, newPassword }
       );
-
+      console.log('Password update response:', res.data);
       return res.data;
     } catch (err) {
+      console.error('Password update error:', err.response?.data || err.message);
       throw new Error(err.response?.data?.message || 'Failed to update password');
     }
   };
 
   // Logout user
   const logout = () => {
-    localStorage.removeItem('token');
+    console.log('Logging out user');
     removeAuthToken();
     setUser(null);
     setIsAuthenticated(false);
