@@ -66,13 +66,14 @@ exports.login = async (req, res) => {
     }
 
     const user = await User.findOne({ email });
+    console.log('Found user:', user); // Логируем найденного пользователя
     if (!user) {
       console.log('User not found:', email);
       return res.status(400).json({ message: 'Invalid credentials' });
     }
 
     const isMatch = await bcrypt.compare(password, user.password);
-    console.log('Password match:', isMatch); // Добавьте эту строку
+    console.log('Password match:', isMatch); // Логируем результат сравнения пароля
     if (!isMatch) {
       return res.status(400).json({ message: 'Invalid credentials' });
     }
@@ -80,11 +81,7 @@ exports.login = async (req, res) => {
     const token = generateToken(user);
     res.json({
       token,
-      user: {
-        id: user.id,
-        username: user.username,
-        email: user.email,
-      },
+      user: { id: user.id, username: user.username, email: user.email },
     });
   } catch (error) {
     console.error('Login error:', error);

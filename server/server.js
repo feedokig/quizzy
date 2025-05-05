@@ -30,7 +30,7 @@ const io = socketIo(server, {
 // Middleware
 app.use(
   cors({
-    origin: process.env.CLIENT_URL || 'https://quizzy-olive.vercel.app',
+    origin: process.env.CLIENT_URL || 'https://quizzy-sandy-six.vercel.app/',
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
     credentials: true,
   })
