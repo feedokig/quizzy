@@ -58,25 +58,26 @@ exports.register = async (req, res) => {
 // Вход пользователя
 exports.login = async (req, res) => {
   try {
+    console.log('Login attempt:', req.body); // Отладочный вывод
     const { email, password } = req.body;
 
-    // Ищем пользователя по email
+    if (!email || !password) {
+      return res.status(400).json({ message: 'Email and password are required' });
+    }
+
     const user = await User.findOne({ email });
-
     if (!user) {
+      console.log('User not found:', email);
       return res.status(400).json({ message: 'Invalid credentials' });
     }
 
-    // Проверяем пароль
     const isMatch = await bcrypt.compare(password, user.password);
-
     if (!isMatch) {
+      console.log('Password mismatch for:', email);
       return res.status(400).json({ message: 'Invalid credentials' });
     }
 
-    // Генерируем токен
     const token = generateToken(user);
-
     res.json({
       token,
       user: {

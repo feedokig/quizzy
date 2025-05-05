@@ -56,16 +56,21 @@ export function AuthProvider({ children }) {
   // Login user
   const login = async (userData) => {
     try {
-      const res = await api.post('/api/auth/login', userData);
-
-      localStorage.setItem('token', res.data.token); // Сохранение токена
-      setAuthToken(res.data.token); // Установка токена для axios
+      console.log('Login data:', userData); // Отладочный вывод
+      const res = await api.post('/api/auth/login', {
+        email: userData.email,
+        password: userData.password,
+      });
+  
+      localStorage.setItem('token', res.data.token);
+      setAuthToken(res.data.token);
       setUser(res.data.user);
       setIsAuthenticated(true);
       setError(null);
-
+  
       return res.data;
     } catch (err) {
+      console.error('Login error:', err.response?.data);
       setError(err.response?.data?.message || 'Login failed');
       throw err;
     }
