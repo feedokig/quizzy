@@ -18,45 +18,6 @@ router.post('/register', authController.register);
 // @access  Public
 
 router.post('/login', authController.login);
-/* router.post('/login', async (req, res) => {
-  try {
-    const { email, password } = req.body;
-
-    // Проверяем, переданы ли email и password
-    if (!email || !password) {
-      return res.status(400).json({ message: 'Please provide email and password' });
-    }
-
-    // Ищем пользователя по email
-    const user = await User.findOne({ email });
-    if (!user) {
-      return res.status(400).json({ message: 'Invalid credentials' });
-    }
-
-    // Проверяем пароль
-    const isMatch = await bcrypt.compare(password, user.password);
-    if (!isMatch) {
-      return res.status(400).json({ message: 'Invalid credentials' });
-    }
-
-    // Генерируем токен
-    const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET, {
-      expiresIn: '7d',
-    });
-
-    res.status(200).json({
-      token,
-      user: {
-        id: user._id,
-        username: user.username,
-        email: user.email,
-      },
-    });
-  } catch (error) {
-    console.error('Login error:', error);
-    res.status(500).json({ message: 'Server error' });
-  }
-}); */
 
 // @route   GET /api/auth/me
 // @desc    Получение информации о пользователе
