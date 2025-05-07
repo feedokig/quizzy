@@ -16,8 +16,8 @@ const generateToken = (user) => {
 exports.register = async (req, res) => {
   try {
     const { username, email, password } = req.body;
+    console.log('Received password during registration:', password); // Добавьте это
 
-    // Проверяем, существует ли пользователь с таким email или username
     const existingUser = await User.findOne({
       $or: [{ email }, { username }],
     });
@@ -28,12 +28,12 @@ exports.register = async (req, res) => {
       });
     }
 
-    // Хэшируем пароль
-    const trimmedPassword = password.trim(); // Удаляем пробелы
+    const trimmedPassword = password.trim();
+    console.log('Trimmed password:', trimmedPassword); // Добавьте это
     const salt = await bcrypt.genSalt(10);
     const hashedPassword = await bcrypt.hash(trimmedPassword, salt);
+    console.log('Generated hash:', hashedPassword); // Добавьте это
 
-    // Создаем нового пользователя
     const user = new User({
       username,
       email: email.toLowerCase().trim(),
@@ -41,16 +41,15 @@ exports.register = async (req, res) => {
     });
 
     await user.save();
+    console.log('User saved to database:', user); // Добавьте это
 
-    // Генерируем токен для нового пользователя
     const token = generateToken(user);
 
-    // Устанавливаем cookie если используете cookies
     if (res.cookie) {
       res.cookie("token", token, {
         httpOnly: true,
         secure: process.env.NODE_ENV === "production",
-        maxAge: 7 * 24 * 60 * 60 * 1000, // 7 дней
+        maxAge: 7 * 24 * 60 * 60 * 1000,
       });
     }
 
