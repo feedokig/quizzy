@@ -16,7 +16,9 @@ router.post('/register', authController.register);
 // @route   POST /api/auth/login
 // @desc    Вход пользователя
 // @access  Public
-router.post('/login', async (req, res) => {
+
+router.post('/login', authController.login);
+/* router.post('/login', async (req, res) => {
   try {
     const { email, password } = req.body;
 
@@ -54,7 +56,7 @@ router.post('/login', async (req, res) => {
     console.error('Login error:', error);
     res.status(500).json({ message: 'Server error' });
   }
-});
+}); */
 
 // @route   GET /api/auth/me
 // @desc    Получение информации о пользователе
