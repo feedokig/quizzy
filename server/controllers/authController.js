@@ -11,6 +11,7 @@ const generateToken = (user) => {
   );
 };
 
+// Регистрация пользователя
 exports.register = async (req, res) => {
   try {
     const { username, email, password } = req.body;
@@ -28,16 +29,12 @@ exports.register = async (req, res) => {
 
     const trimmedPassword = password.trim();
     console.log('Trimmed password:', trimmedPassword);
-    const salt = generateSalt();
-    const hashedPassword = hashPassword(trimmedPassword, salt);
 
     const user = new User({
       username,
       email: email.toLowerCase().trim(),
-      password: hashedPassword,
-      salt,
+      password: trimmedPassword, // Хэш будет создан хуком pre('save')
     });
-    user.isModified('password', false); // Отключаем хук pre('save') для password
 
     await user.save();
     console.log('User saved to database:', user);
@@ -67,6 +64,7 @@ exports.register = async (req, res) => {
   }
 };
 
+// Вход пользователя
 exports.login = async (req, res) => {
   try {
     console.log("Login attempt:", req.body);
@@ -124,7 +122,6 @@ exports.login = async (req, res) => {
 // Получение данных о пользователе
 exports.getMe = async (req, res) => {
   try {
-    // req.user.id установлен в middleware
     const user = await User.findById(req.user.id).select("-password");
 
     if (!user) {
@@ -148,7 +145,7 @@ exports.updatePassword = async (req, res) => {
       return res.status(404).json({ message: "User not found" });
     }
 
-    const isMatch = await bcrypt.compare(currentPassword, user.password);
+    const isMatch = await user.comparePassword(currentPassword);
     if (!isMatch) {
       return res.status(401).json({ message: "Current password is incorrect" });
     }
