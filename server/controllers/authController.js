@@ -35,7 +35,7 @@ exports.register = async (req, res) => {
     // Создаем нового пользователя
     const user = new User({
       username,
-      email,
+      email: email.toLowerCase().trim(),
       password: hashedPassword,
     });
 
@@ -79,20 +79,20 @@ exports.login = async (req, res) => {
     }
 
     // Поиск пользователя
-    const user = await User.findOne({ email });
+    const user = await User.findOne({ email: email.toLowerCase().trim() });
     console.log('Found user:', user ? 'Yes' : 'No'); // Более безопасное логирование
 
     if (!user) {
       console.log('User not found:', email);
-      return res.status(400).json({ message: 'Invalid credentials' });
+      return res.status(400).json({ message: 'Invalid credentials.' });
     }
 
     // Проверка пароля
     const isMatch = await bcrypt.compare(password, user.password);
     console.log('Password match:', isMatch, 'Input password:', password, 'Stored hash:', user.password);
-        
+
     if (!isMatch) {
-      return res.status(400).json({ message: 'Invalid credentials' });
+      return res.status(400).json({ message: 'Invalid password' });
     }
 
     // Генерация токена
