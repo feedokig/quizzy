@@ -2,6 +2,15 @@
 const User = require("../models/User");
 const jwt = require("jsonwebtoken");
 const bcrypt = require("bcryptjs");
+const crypto = require('crypto');
+
+const hashPassword = (password, salt) => {
+  return crypto.pbkdf2Sync(password, salt, 100000, 64, 'sha512').toString('hex');
+};
+
+const generateSalt = () => {
+  return crypto.randomBytes(16).toString('hex');
+};
 
 // Генерация JWT токена
 const generateToken = (user) => {
@@ -16,7 +25,7 @@ const generateToken = (user) => {
 exports.register = async (req, res) => {
   try {
     const { username, email, password } = req.body;
-    console.log('Received password during registration:', password); // Добавьте это
+    console.log('Received password during registration:', password);
 
     const existingUser = await User.findOne({
       $or: [{ email }, { username }],
@@ -29,19 +38,19 @@ exports.register = async (req, res) => {
     }
 
     const trimmedPassword = password.trim();
-    console.log('Trimmed password:', trimmedPassword); // Добавьте это
-    const salt = await bcrypt.genSalt(10);
-    const hashedPassword = await bcrypt.hash(trimmedPassword, salt);
-    console.log('Generated hash:', hashedPassword); // Добавьте это
+    console.log('Trimmed password:', trimmedPassword);
+    const salt = generateSalt();
+    const hashedPassword = hashPassword(trimmedPassword, salt);
 
     const user = new User({
       username,
       email: email.toLowerCase().trim(),
       password: hashedPassword,
+      salt, // Сохраняем соль в базе данных
     });
 
     await user.save();
-    console.log('User saved to database:', user); // Добавьте это
+    console.log('User saved to database:', user);
 
     const token = generateToken(user);
 
@@ -80,19 +89,18 @@ exports.login = async (req, res) => {
         .json({ message: "Email and password are required" });
     }
 
-    // Поиск пользователя
     const user = await User.findOne({ email: email.toLowerCase().trim() });
-    console.log("Found user:", user ? "Yes" : "No"); // Более безопасное логирование
+    console.log("Found user:", user ? "Yes" : "No");
 
     if (!user) {
       console.log("User not found:", email);
       return res.status(400).json({ message: "Invalid credentials." });
     }
 
-    // Проверка пароля
     const trimmedPassword = password.trim();
-    const isMatch = await bcrypt.compare(trimmedPassword, user.password);
-      console.log(
+    const hashedInputPassword = hashPassword(trimmedPassword, user.salt);
+    const isMatch = hashedInputPassword === user.password;
+    console.log(
       "Password match:",
       isMatch,
       "Input password:",
@@ -105,15 +113,13 @@ exports.login = async (req, res) => {
       return res.status(400).json({ message: "Invalid password" });
     }
 
-    // Генерация токена
     const token = generateToken(user);
 
-    // Устанавливаем cookie если используете cookies
     if (res.cookie) {
       res.cookie("token", token, {
         httpOnly: true,
         secure: process.env.NODE_ENV === "production",
-        maxAge: 7 * 24 * 60 * 60 * 1000, // 7 дней
+        maxAge: 7 * 24 * 60 * 60 * 1000,
       });
     }
 
