@@ -19,6 +19,19 @@ router.post('/register', authController.register);
 
 router.post('/login', authController.login);
 
+
+router.get('/test-bcrypt', async (req, res) => {
+  try {
+    const password = '12345678';
+    const salt = await bcrypt.genSalt(10);
+    const hash = await bcrypt.hash(password, salt);
+    const isMatch = await bcrypt.compare(password, hash);
+    res.json({ hash, isMatch });
+  } catch (error) {
+    res.status(500).json({ message: 'Error testing bcrypt', error });
+  }
+});
+
 // @route   GET /api/auth/me
 // @desc    Получение информации о пользователе
 // @access  Private
