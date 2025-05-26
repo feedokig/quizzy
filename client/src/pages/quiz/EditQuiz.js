@@ -122,7 +122,7 @@ const EditQuiz = () => {
       }
 
       const response = await axios.put(
-        `http://localhost:5000/api/quiz/${id}`,
+        `${process.env.REACT_APP_API_URL}/api/quiz/${id}`,
         quizData,
         {
           headers: {
