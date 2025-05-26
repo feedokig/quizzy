@@ -1,14 +1,13 @@
 import axios from 'axios';
 
-const API_URL = `${process.env.REACT_APP_API_URL}/api/games`;
+const API_URL = `${process.env.REACT_APP_API_URL}/api/games` || 'http://localhost:5000/api/games';
 
 
 const gameService = {
   createGame: async (quizId) => {
     try {
-      const hostId = localStorage.getItem('userId');
-      
-      if (!hostId) {
+      const token = localStorage.getItem('token');
+      if (!token) {
         throw new Error('User not authenticated');
       }
 
@@ -16,10 +15,15 @@ const gameService = {
         throw new Error('Quiz ID is required');
       }
 
-      const response = await axios.post(`${API_URL}/create`, {
-        quizId,
-        hostId
-      });
+      const response = await axios.post(
+        `${API_URL}/create`,
+        { quizId },
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
 
       return response.data;
     } catch (error) {
@@ -30,31 +34,45 @@ const gameService = {
 
   getGame: async (gameId) => {
     try {
+      const token = localStorage.getItem('token');
+      if (!token) {
+        throw new Error('User not authenticated');
+      }
+
       if (!gameId) {
         throw new Error('Game ID is required');
       }
 
-      const response = await fetch(`/api/games/${gameId}`);
-      if (!response.ok) {
-        throw new Error(`Failed to get game: ${response.statusText}`);
-      }
-
-      const data = await response.json();
-      return data;
+      const response = await axios.get(`${API_URL}/${gameId}`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+      return response.data;
     } catch (error) {
       console.error('Get game error:', error);
-      throw error;
+      throw new Error(error.response?.data?.error || 'Failed to get game');
     }
   },
 
   getGameByPin: async (pin) => {
     try {
-      const response = await axios.get(`${API_URL}/pin/${pin}`);
+      const token = localStorage.getItem('token');
+      if (!token) {
+        throw new Error('User not authenticated');
+      }
+
+      const response = await axios.get(`${API_URL}/pin/${pin}`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
       return response.data;
     } catch (error) {
-      throw error.response?.data?.error || 'Failed to get game';
+      console.error('Get game by pin error:', error);
+      throw new Error(error.response?.data?.error || 'Failed to get game');
     }
-  }
+  },
 };
 
 export default gameService;

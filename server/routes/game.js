@@ -3,11 +3,28 @@ const express = require('express');
 const router = express.Router();
 const gameController = require('../controllers/gameController');
 const auth = require('../middleware/auth');
+const Game = require('../models/Game');
 
 // @route   POST /api/game
 // @desc    Создание игры
 // @access  Private
 router.post('/', auth, gameController.createGame);
+
+router.post('/create', protect, async (req, res) => {
+  try {
+    const { quizId } = req.body;
+    if (!quizId) {
+      return res.status(400).json({ error: 'Quiz ID is required' });
+    }
+
+    const hostId = req.user.id; // Extract hostId from decoded JWT
+    const game = await Game.create({ quizId, hostId });
+    res.status(201).json(game);
+  } catch (error) {
+    console.error('Game creation error:', error);
+    res.status(500).json({ error: 'Failed to create game' });
+  }
+});
 
 // @route   POST /api/game/join
 // @desc    Присоединение к игре
