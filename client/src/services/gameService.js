@@ -1,23 +1,19 @@
-// client/src/services/gameService.js
-import axios from "axios";
+import axios from 'axios';
 
-const API_URL = process.env.REACT_APP_API_URL
-  ? `${process.env.REACT_APP_API_URL}/api/games`
-  : "http://localhost:5000/api/games";
+const API_URL = process.env.REACT_APP_API_URL ? `${process.env.REACT_APP_API_URL}/api/games` : 'http://localhost:5000/api/games';
 
 const gameService = {
   createGame: async (quizId) => {
     try {
-      const token = localStorage.getItem("token");
+      const token = localStorage.getItem('token');
       if (!token) {
-        throw new Error("User not authenticated");
+        throw new Error('User not authenticated');
       }
 
       if (!quizId) {
-        throw new Error("Quiz ID is required");
+        throw new Error('Quiz ID is required');
       }
 
-      console.log("Creating game with quizId:", quizId, "Token:", token); // Debug log
       const response = await axios.post(
         `${API_URL}/create`,
         { quizId },
@@ -28,23 +24,22 @@ const gameService = {
         }
       );
 
-      console.log("Game created:", response.data); // Debug log
       return response.data;
     } catch (error) {
-      console.error("Game creation error:", error.response?.data || error);
-      throw new Error(error.response?.data?.error || "Failed to create game");
+      console.error('Game creation error:', error);
+      throw new Error(error.response?.data?.error || 'Failed to create game');
     }
   },
 
   getGame: async (gameId) => {
     try {
-      const token = localStorage.getItem("token");
+      const token = localStorage.getItem('token');
       if (!token) {
-        throw new Error("User not authenticated");
+        throw new Error('User not authenticated');
       }
 
       if (!gameId) {
-        throw new Error("Game ID is required");
+        throw new Error('Game ID is required');
       }
 
       const response = await axios.get(`${API_URL}/${gameId}`, {
@@ -54,17 +49,18 @@ const gameService = {
       });
       return response.data;
     } catch (error) {
-      console.error("Get game error:", error);
-      throw new Error(error.response?.data?.error || "Failed to get game");
+      console.error('Get game error:', error);
+      throw new Error(error.response?.data?.error || 'Failed to get game');
     }
   },
 
   getGameByPin: async (pin) => {
     try {
-      const token = localStorage.getItem("token");
+      const token = localStorage.getItem('token');
       if (!token) {
-        throw new Error("User not authenticated");
+        throw new Error('User not authenticated');
       }
+
       const response = await axios.get(`${API_URL}/pin/${pin}`, {
         headers: {
           Authorization: `Bearer ${token}`,
@@ -72,8 +68,8 @@ const gameService = {
       });
       return response.data;
     } catch (error) {
-      console.error("Get game by pin error:", error);
-      throw new Error(error.response?.data?.error || "Failed to get game");
+      console.error('Get game by pin error:', error);
+      throw new Error(error.response?.data?.error || 'Failed to get game');
     }
   },
 };

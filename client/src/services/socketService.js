@@ -11,14 +11,14 @@ class SocketService {
       onUpdatePlayers: null,
       onQuestion: null,
       onGameStarted: null,
-      onShowAnswerHistory: null,
+      onShowAnswerHistory: null, // Callback for answer history
       onFiftyFiftyOptions: null,
       onBoostActivated: null,
       onBoostError: null,
       onAnswerResult: null,
       onGameError: null,
       onQuizFinished: null,
-      onMaxPlayersUpdated: null,
+      onMaxPlayersUpdated: null, // Added for max players updates
     };
   }
 
@@ -27,17 +27,8 @@ class SocketService {
       return this.socket;
     }
 
-    this.socket = io(process.env.REACT_APP_API_URL || 'https://quizzy-olive.vercel.app', {
-      transports: ["polling"], // Use polling instead of WebSocket
-      withCredentials: true,
-    });
-
-    this.socket.on('connect', () => {
-      console.log('Socket.IO connected via polling:', this.socket.id);
-    });
-
-    this.socket.on('connect_error', (error) => {
-      console.error('Socket.IO connection error:', error);
+    this.socket = io(process.env.REACT_APP_API_URL || 'http://localhost:5000', {
+      transports: ["websocket"],
     });
 
     this.setupListeners();
