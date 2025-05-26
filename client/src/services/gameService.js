@@ -1,3 +1,4 @@
+// client/src/services/gameService.js
 import axios from 'axios';
 
 const API_URL = process.env.REACT_APP_API_URL ? `${process.env.REACT_APP_API_URL}/api/games` : 'http://localhost:5000/api/games';
@@ -14,6 +15,7 @@ const gameService = {
         throw new Error('Quiz ID is required');
       }
 
+      console.log('Creating game with quizId:', quizId, 'Token:', token); // Debug log
       const response = await axios.post(
         `${API_URL}/create`,
         { quizId },
@@ -24,9 +26,10 @@ const gameService = {
         }
       );
 
+      console.log('Game created:', response.data); // Debug log
       return response.data;
     } catch (error) {
-      console.error('Game creation error:', error);
+      console.error('Game creation error:', error.response?.data || error);
       throw new Error(error.response?.data?.error || 'Failed to create game');
     }
   },
