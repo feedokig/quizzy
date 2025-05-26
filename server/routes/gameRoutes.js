@@ -22,30 +22,8 @@ router.post('/create', protect, async (req, res) => {
     }
 
     const hostId = req.user.id; // Extract hostId from decoded JWT
-
-    // Check if quiz exists
-    const quiz = await Quiz.findById(quizId);
-    if (!quiz) {
-      return res.status(404).json({ error: 'Quiz not found' });
-    }
-
-    // Generate unique PIN
-    const pin = generatePin();
-
-    const game = new Game({
-      quiz: quizId,
-      host: hostId,
-      pin,
-      isActive: false,
-      isCompleted: false,
-      createdAt: new Date(),
-    });
-
-    await game.save();
-
-    // Populate quiz data before sending response
-    const populatedGame = await Game.findById(game._id).populate('quiz');
-    res.status(201).json(populatedGame);
+    const game = await Game.create({ quizId, hostId });
+    res.status(201).json(game);
   } catch (error) {
     console.error('Game creation error:', error);
     res.status(500).json({ error: 'Failed to create game' });
