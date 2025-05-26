@@ -30,7 +30,7 @@ export function GameProvider({ children }) {
 
   // Initialize socket connection
   const initSocket = () => {
-    const newSocket = io(process.env.REACT_APP_API_URL || '');
+    const newSocket = io(process.env.REACT_APP_API_URL || 'http://localhost:5000');
     setSocket(newSocket);
     return newSocket;
   };
