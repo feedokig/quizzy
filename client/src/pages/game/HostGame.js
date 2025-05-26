@@ -3,6 +3,7 @@ import { useParams, useLocation, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import gameService from '../../services/gameService';
 import socketService from '../../services/socketService';
+import { useAuth } from '../../contexts/AuthContext';
 import AnswerHistoryModal from '../../components/AnswerHistoryModal';
 import './HostGame.css';
 
@@ -11,6 +12,7 @@ const HostGame = () => {
   const { gameId } = useParams();
   const location = useLocation();
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [game, setGame] = useState(location.state?.game || null);
   const [loading, setLoading] = useState(!location.state?.game);
   const [error, setError] = useState('');
@@ -25,14 +27,13 @@ const HostGame = () => {
   const [answerHistory, setAnswerHistory] = useState([]);
   const [allPlayersAnswered, setAllPlayersAnswered] = useState(false);
 
-  useEffect(() => {
+ useEffect(() => {
     const initGame = async () => {
       try {
         setPlayers([]);
         setLoading(true);
-        const hostId = localStorage.getItem('userId');
 
-        if (!hostId) {
+        if (!user || !user.id) {
           throw new Error(t('hostGame.error.notAuthenticated'));
         }
 
@@ -165,7 +166,7 @@ const HostGame = () => {
           setError(error.message || t('hostGame.error.generic'));
         });
 
-        socketService.hostJoin(gameData.pin, gameData._id, hostId);
+        socketService.hostJoin(gameData.pin, gameData._id, user.id); // Use user.id
 
         setLoading(false);
       } catch (err) {
@@ -180,7 +181,7 @@ const HostGame = () => {
     return () => {
       socketService.disconnect();
     };
-  }, [gameId, t]);
+  }, [gameId, t, user]);
 
   useEffect(() => {
     if (gameState === 'playing' && currentQuestion && players.length > 0) {

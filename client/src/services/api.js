@@ -4,12 +4,13 @@ import axios from 'axios';
 const api = axios.create({
   baseURL: process.env.REACT_APP_API_URL || 'https://quizzy-olive.vercel.app',
   headers: {
-    'Content-Type': 'application/json'
+    'Content-Type': 'application/json',
   },
-  withCredentials: true,
+  // Remove withCredentials if not using cookies
+  // withCredentials: true,
 });
 
-// Добавляем интерсептор для отладки запросов
+// Interceptors unchanged
 api.interceptors.request.use(
   config => {
     console.log(`API Request: ${config.method.toUpperCase()} ${config.url}`, config.headers);
@@ -21,7 +22,6 @@ api.interceptors.request.use(
   }
 );
 
-// Добавляем интерсептор для отладки ответов
 api.interceptors.response.use(
   response => {
     console.log(`API Response: ${response.status}`, response.data);
