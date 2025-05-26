@@ -14,19 +14,45 @@ const generatePin = () => {
 };
 
 // Создание новой игры
-router.post('/create', protect, async (req, res) => {
+router.post('/create', async (req, res) => {
   try {
-    const { quizId } = req.body;
-    if (!quizId) {
-      return res.status(400).json({ error: 'Quiz ID is required' });
+    const { quizId, hostId } = req.body;
+    
+    // Validate input
+    if (!quizId || !hostId) {
+      return res.status(400).json({ 
+        error: 'Quiz ID and Host ID are required' 
+      });
     }
 
-    const hostId = req.user.id; // Extract hostId from decoded JWT
-    const game = await Game.create({ quizId, hostId });
-    res.status(201).json(game);
+    // Check if quiz exists
+    const quiz = await Quiz.findById(quizId);
+    if (!quiz) {
+      return res.status(404).json({ error: 'Quiz not found' });
+    }
+
+    // Generate unique PIN
+    const pin = Math.floor(100000 + Math.random() * 900000).toString();
+
+    const game = new Game({
+      quiz: quizId,
+      host: hostId,
+      pin,
+      isActive: false,
+      isCompleted: false,
+      createdAt: new Date()
+    });
+
+    await game.save();
+    
+    // Populate quiz data before sending response
+    const populatedGame = await Game.findById(game._id).populate('quiz');
+    
+    // Make sure to send a response
+    return res.status(201).json(populatedGame);
   } catch (error) {
-    console.error('Game creation error:', error);
-    res.status(500).json({ error: 'Failed to create game' });
+    console.error('Create game error:', error);
+    return res.status(500).json({ error: 'Failed to create game' });
   }
 });
 
