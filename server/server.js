@@ -27,19 +27,14 @@ const io = socketIo(server, {
   },
 });
 
-// Configure CORS
+// Middleware
 app.use(
   cors({
-    origin: 'https://quizzy-sandy-six.vercel.app',
+    origin: process.env.CLIENT_URL || 'https://quizzy-sandy-six.vercel.app/',
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
     credentials: true,
-    allowedHeaders: ['Content-Type', 'Authorization', 'x-auth-token'],
   })
 );
-
-// Handle preflight OPTIONS requests
-app.options('*', cors()); // Ensure preflight requests are handled
-
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 
