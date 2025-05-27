@@ -1,6 +1,9 @@
+// client/src/services/gameService.js
 import axios from 'axios';
 
-const API_URL = process.env.REACT_APP_API_URL ? `${process.env.REACT_APP_API_URL}/api/games` : 'http://localhost:5000/api/games';
+const API_URL = process.env.REACT_APP_API_URL
+  ? `${process.env.REACT_APP_API_URL}/api/games`
+  : 'http://localhost:5000/api/games';
 
 const gameService = {
   createGame: async (quizId) => {
@@ -56,16 +59,11 @@ const gameService = {
 
   getGameByPin: async (pin) => {
     try {
-      const token = localStorage.getItem('token');
-      if (!token) {
-        throw new Error('User not authenticated');
+      if (!pin) {
+        throw new Error('PIN is required');
       }
 
-      const response = await axios.get(`${API_URL}/pin/${pin}`, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
+      const response = await axios.get(`${API_URL}/pin/${pin.trim()}`);
       return response.data;
     } catch (error) {
       console.error('Get game by pin error:', error);

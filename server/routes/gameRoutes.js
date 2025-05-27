@@ -16,7 +16,7 @@ const generatePin = () => {
 router.post('/create', protect, async (req, res) => {
   try {
     const { quizId } = req.body;
-    const hostId = req.user.id; // Extract hostId from JWT
+    const hostId = req.user.id;
 
     if (!quizId) {
       return res.status(400).json({ error: 'Quiz ID is required' });
@@ -28,7 +28,6 @@ router.post('/create', protect, async (req, res) => {
     }
 
     const pin = generatePin();
-
     const game = new Game({
       quiz: quizId,
       host: hostId,
@@ -39,6 +38,7 @@ router.post('/create', protect, async (req, res) => {
     });
 
     await game.save();
+    console.log('Game created:', { id: game._id, pin: game.pin });
 
     const populatedGame = await Game.findById(game._id).populate('quiz');
     return res.status(201).json(populatedGame);
@@ -69,14 +69,17 @@ router.get('/:id', async (req, res) => {
 
 router.get('/pin/:pin', async (req, res) => {
   try {
+    console.log('Querying game with PIN:', req.params.pin);
     const game = await Game.findOne({
       pin: req.params.pin,
       isCompleted: false,
     }).populate('quiz');
 
     if (!game) {
+      console.log('Game not found for PIN:', req.params.pin);
       return res.status(404).json({ error: 'Game not found' });
     }
+    console.log('Game found:', game);
     res.json(game);
   } catch (error) {
     console.error('Get game by pin error:', error);
