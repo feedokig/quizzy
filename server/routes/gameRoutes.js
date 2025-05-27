@@ -9,8 +9,14 @@ router.get('/test', (req, res) => {
   res.json({ message: 'Game routes working' });
 });
 
-const generatePin = () => {
-  return Math.floor(100000 + Math.random() * 900000).toString();
+const generatePin = async () => {
+  let pin;
+  let existingGame;
+  do {
+    pin = Math.floor(100000 + Math.random() * 900000).toString();
+    existingGame = await Game.findOne({ pin });
+  } while (existingGame);
+  return pin;
 };
 
 router.post('/create', protect, async (req, res) => {
@@ -24,10 +30,11 @@ router.post('/create', protect, async (req, res) => {
 
     const quiz = await Quiz.findById(quizId);
     if (!quiz) {
+      console.log('Quiz not found for ID:', quizId);
       return res.status(404).json({ error: 'Quiz not found' });
     }
 
-    const pin = generatePin();
+    const pin = await generatePin();
     const game = new Game({
       quiz: quizId,
       host: hostId,
@@ -38,13 +45,39 @@ router.post('/create', protect, async (req, res) => {
     });
 
     await game.save();
-    console.log('Game created:', { id: game._id, pin: game.pin });
+    console.log('Game created:', { id: game._id, pin: game.pin, quiz: quizId });
 
     const populatedGame = await Game.findById(game._id).populate('quiz');
+    if (!populatedGame) {
+      console.error('Failed to populate game:', game._id);
+      return res.status(500).json({ error: 'Failed to retrieve game' });
+    }
+
     return res.status(201).json(populatedGame);
   } catch (error) {
-    console.error('Create game error:', error);
+    console.error('Create game error:', error.message, error.stack);
     return res.status(500).json({ error: 'Failed to create game' });
+  }
+});
+
+router.get('/pin/:pin', async (req, res) => {
+  try {
+    console.log('Fetching game with PIN:', req.params.pin);
+    const game = await Game.findOne({
+      pin: req.params.pin,
+      isCompleted: false,
+    }).populate('quiz');
+
+    if (!game) {
+      console.log('No game found for PIN:', req.params.pin);
+      return res.status(404).json({ error: 'Game not found' });
+    }
+
+    console.log('Game retrieved:', { id: game._id, pin: game.pin });
+    res.json(game);
+  } catch (error) {
+    console.error('Get game by pin error:', error.message, error.stack);
+    res.status(500).json({ error: 'Failed to get game' });
   }
 });
 
@@ -63,26 +96,6 @@ router.get('/:id', async (req, res) => {
     res.json(game);
   } catch (error) {
     console.error('Get game error:', error);
-    res.status(500).json({ error: 'Failed to get game' });
-  }
-});
-
-router.get('/pin/:pin', async (req, res) => {
-  try {
-    console.log('Querying game with PIN:', req.params.pin);
-    const game = await Game.findOne({
-      pin: req.params.pin,
-      isCompleted: false,
-    }).populate('quiz');
-
-    if (!game) {
-      console.log('Game not found for PIN:', req.params.pin);
-      return res.status(404).json({ error: 'Game not found' });
-    }
-    console.log('Game found:', game);
-    res.json(game);
-  } catch (error) {
-    console.error('Get game by pin error:', error);
     res.status(500).json({ error: 'Failed to get game' });
   }
 });

@@ -1,5 +1,5 @@
 // services/socketService.js
-import io from "socket.io-client";
+import io from 'socket.io-client';
 
 class SocketService {
   constructor() {
@@ -19,6 +19,7 @@ class SocketService {
       onGameError: null,
       onQuizFinished: null,
       onMaxPlayersUpdated: null,
+      onGameJoined: null,
     };
   }
 
@@ -27,17 +28,19 @@ class SocketService {
       return this.socket;
     }
 
-    this.socket = io(process.env.REACT_APP_API_URL || "http://localhost:5000", {
-      transports: ["polling"], // Force polling
+    this.socket = io(process.env.REACT_APP_API_URL || 'http://localhost:5000', {
+      transports: ['polling'],
       withCredentials: true,
+      reconnectionAttempts: 5,
+      reconnectionDelay: 1000,
     });
 
-    this.socket.on("connect", () => {
-      console.log("Socket.IO connected:", this.socket.id);
+    this.socket.on('connect', () => {
+      console.log('Socket.IO connected:', this.socket.id);
     });
 
-    this.socket.on("connect_error", (error) => {
-      console.error("Socket.IO connection error:", error);
+    this.socket.on('connect_error', (error) => {
+      console.error('Socket.IO connection error:', error.message);
     });
 
     this.setupListeners();
