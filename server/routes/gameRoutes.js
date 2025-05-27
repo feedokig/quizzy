@@ -23,17 +23,16 @@ router.post('/create', protect, async (req, res) => {
   try {
     const { quizId } = req.body;
     const hostId = req.user.id;
-
+    console.log('Creating game with quizId:', quizId, 'hostId:', hostId);
     if (!quizId) {
+      console.log('Quiz ID missing');
       return res.status(400).json({ error: 'Quiz ID is required' });
     }
-
     const quiz = await Quiz.findById(quizId);
     if (!quiz) {
       console.log('Quiz not found for ID:', quizId);
       return res.status(404).json({ error: 'Quiz not found' });
     }
-
     const pin = await generatePin();
     const game = new Game({
       quiz: quizId,
@@ -43,20 +42,13 @@ router.post('/create', protect, async (req, res) => {
       isCompleted: false,
       createdAt: new Date(),
     });
-
     await game.save();
     console.log('Game created:', { id: game._id, pin: game.pin, quiz: quizId });
-
     const populatedGame = await Game.findById(game._id).populate('quiz');
-    if (!populatedGame) {
-      console.error('Failed to populate game:', game._id);
-      return res.status(500).json({ error: 'Failed to retrieve game' });
-    }
-
-    return res.status(201).json(populatedGame);
+    res.status(201).json(populatedGame);
   } catch (error) {
     console.error('Create game error:', error.message, error.stack);
-    return res.status(500).json({ error: 'Failed to create game' });
+    res.status(500).json({ error: 'Failed to create game' });
   }
 });
 

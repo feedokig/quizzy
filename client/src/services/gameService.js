@@ -1,20 +1,20 @@
 // client/src/services/gameService.js
-import axios from 'axios';
+import axios from "axios";
 
 const API_URL = process.env.REACT_APP_API_URL
   ? `${process.env.REACT_APP_API_URL}/api/games`
-  : 'http://localhost:5000/api/games';
+  : "http://localhost:5000/api/games";
 
 const gameService = {
   createGame: async (quizId) => {
     try {
-      const token = localStorage.getItem('token');
+      const token = localStorage.getItem("token");
       if (!token) {
-        throw new Error('User not authenticated');
+        throw new Error("User not authenticated");
       }
 
       if (!quizId) {
-        throw new Error('Quiz ID is required');
+        throw new Error("Quiz ID is required");
       }
 
       const response = await axios.post(
@@ -29,20 +29,20 @@ const gameService = {
 
       return response.data;
     } catch (error) {
-      console.error('Game creation error:', error);
-      throw new Error(error.response?.data?.error || 'Failed to create game');
+      console.error("Game creation error:", error);
+      throw new Error(error.response?.data?.error || "Failed to create game");
     }
   },
 
   getGame: async (gameId) => {
     try {
-      const token = localStorage.getItem('token');
+      const token = localStorage.getItem("token");
       if (!token) {
-        throw new Error('User not authenticated');
+        throw new Error("User not authenticated");
       }
 
       if (!gameId) {
-        throw new Error('Game ID is required');
+        throw new Error("Game ID is required");
       }
 
       const response = await axios.get(`${API_URL}/${gameId}`, {
@@ -52,22 +52,24 @@ const gameService = {
       });
       return response.data;
     } catch (error) {
-      console.error('Get game error:', error);
-      throw new Error(error.response?.data?.error || 'Failed to get game');
+      console.error("Get game error:", error);
+      throw new Error(error.response?.data?.error || "Failed to get game");
     }
   },
 
   getGameByPin: async (pin) => {
     try {
       if (!pin) {
-        throw new Error('PIN is required');
+        console.log("PIN is required but missing");
+        throw new Error("PIN is required");
       }
-
+      console.log("Fetching game with PIN:", pin.trim());
       const response = await axios.get(`${API_URL}/pin/${pin.trim()}`);
+      console.log("Game fetched:", response.data);
       return response.data;
     } catch (error) {
-      console.error('Get game by pin error:', error);
-      throw new Error(error.response?.data?.error || 'Failed to get game');
+      console.error("Get game by pin error:", error);
+      throw new Error(error.response?.data?.error || "Failed to get game");
     }
   },
 };
