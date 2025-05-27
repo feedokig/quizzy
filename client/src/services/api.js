@@ -2,7 +2,7 @@
 import axios from 'axios';
 
 const api = axios.create({
-  baseURL: process.env.REACT_APP_API_URL || 'https://quizzy-olive.vercel.app',
+  baseURL: process.env.REACT_APP_API_URL || 'https://quizzy-backend-1cq8.onrender.com',
   headers: {
     'Content-Type': 'application/json',
   },

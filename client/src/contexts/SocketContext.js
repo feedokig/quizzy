@@ -14,7 +14,7 @@ export const SocketProvider = ({ children }) => {
 
   useEffect(() => {
     // Инициализация соединения socket.io
-    const newSocket = io(process.env.REACT_APP_API_URL || 'http://localhost:5000', {
+    const newSocket = io(process.env.REACT_APP_API_URL || 'https://quizzy-backend-1cq8.onrender.com', {
       transports: ['websocket'],
       upgrade: false
     });

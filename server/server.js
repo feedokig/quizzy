@@ -15,7 +15,7 @@ const app = express();
 const server = http.createServer(app);
 const io = socketIo(server, {
   cors: {
-    origin: process.env.CLIENT_URL || "https://quizzy-sandy-six.vercel.app",
+    origin: process.env.CLIENT_URL || "https://quizzy-client-bktl.onrender.com",
     methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     credentials: true,
   },
@@ -33,7 +33,7 @@ io.on("connection", (socket) => {
 
 app.use(
   cors({
-    origin: process.env.CLIENT_URL || "https://quizzy-sandy-six.vercel.app",
+    origin: process.env.CLIENT_URL || "https://quizzy-client-bktl.onrender.com",
     methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     credentials: true,
     allowedHeaders: ["Content-Type", "Authorization", "x-auth-token"],
