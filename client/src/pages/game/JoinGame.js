@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import gameService from '../../services/gameService';
-import socketService from '../services/socketService';
+import socketService from '../../services/socketService';
 import { useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import "./JoinGame.css";
