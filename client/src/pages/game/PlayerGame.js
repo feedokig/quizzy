@@ -14,6 +14,7 @@ const PlayerGame = () => {
   const [gameState, setGameState] = useState('playing');
   const [maxPlayers, setMaxPlayers] = useState(10);
   const navigate = useNavigate();
+  const [error, setError] = useState('');
   const [availableBoosts, setAvailableBoosts] = useState({
     fifty_fifty: true,
   });
@@ -85,6 +86,8 @@ const PlayerGame = () => {
 
     const handleJoinError = (error) => {
       console.error('Join error:', error);
+      setError(error.message || t('playerGame.joinError'));
+      navigate('/join'); // Redirect to join page on error
     };
 
     socketService.on('question', handleQuestion);
@@ -97,11 +100,17 @@ const PlayerGame = () => {
     socketService.on('max-players-updated', handleMaxPlayersUpdated);
     socketService.on('join-error', handleJoinError);
 
-    const nickname = localStorage.getItem('playerNickname');
+    // Only join if not already joined
     if (!hasJoined.current) {
-      console.log('Joining game:', { pin, nickname });
-      socketService.playerJoin(pin, nickname);
-      hasJoined.current = true;
+      const nickname = localStorage.getItem('playerNickname');
+      if (nickname) {
+        console.log('Joining game:', { pin, nickname });
+        socketService.playerJoin(pin, nickname);
+        hasJoined.current = true;
+      } else {
+        setError(t('playerGame.noNickname'));
+        navigate('/join');
+      }
     }
 
     return () => {

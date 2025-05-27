@@ -1,5 +1,5 @@
 // services/socketService.js
-import io from "socket.io-client";
+import io from 'socket.io-client';
 
 class SocketService {
   constructor() {
@@ -11,14 +11,14 @@ class SocketService {
       onUpdatePlayers: null,
       onQuestion: null,
       onGameStarted: null,
-      onShowAnswerHistory: null, // Callback for answer history
+      onShowAnswerHistory: null,
       onFiftyFiftyOptions: null,
       onBoostActivated: null,
       onBoostError: null,
       onAnswerResult: null,
       onGameError: null,
       onQuizFinished: null,
-      onMaxPlayersUpdated: null, // Added for max players updates
+      onMaxPlayersUpdated: null,
     };
   }
 
@@ -28,81 +28,123 @@ class SocketService {
     }
 
     this.socket = io(process.env.REACT_APP_API_URL || 'http://localhost:5000', {
-      transports: ["websocket"],
+      transports: ['websocket', 'polling'], // Allow polling fallback
+      withCredentials: true,
+    });
+
+    this.socket.on('connect', () => {
+      console.log('Socket.IO connected:', this.socket.id);
+    });
+
+    this.socket.on('connect_error', (error) => {
+      console.error('Socket.IO connection error:', error);
     });
 
     this.setupListeners();
     return this.socket;
   }
 
-  setupListeners() {
+setupListeners() {
     if (!this.socket) return;
 
-    // Player events
-    this.socket.on("player-joined", (data) => {
+    this.socket.on('player-joined', (data) => {
       if (this.callbacks.onPlayerJoined) this.callbacks.onPlayerJoined(data);
     });
 
-    this.socket.on("player-left", (playerId) => {
+    this.socket.on('player-left', (playerId) => {
       if (this.callbacks.onPlayerLeft) this.callbacks.onPlayerLeft(playerId);
     });
 
-    this.socket.on("player-answered", (data) => {
+    this.socket.on('player-answered', (data) => {
       if (this.callbacks.onPlayerAnswered) this.callbacks.onPlayerAnswered(data);
     });
 
-    this.socket.on("update-players", (players) => {
+    this.socket.on('update-players', (players) => {
       if (this.callbacks.onUpdatePlayers) this.callbacks.onUpdatePlayers(players);
     });
 
-    // Question events
-    this.socket.on("question", (questionData) => {
+    this.socket.on('question', (questionData) => {
       if (this.callbacks.onQuestion) this.callbacks.onQuestion(questionData);
     });
 
-    // Game state events
-    this.socket.on("game-started", () => {
+    this.socket.on('game-started', () => {
       if (this.callbacks.onGameStarted) this.callbacks.onGameStarted();
     });
 
-    // Answer history event - properly implemented
-    this.socket.on("show-answer-history", (answerData) => {
-      console.log("Received answer history from server:", answerData);
+    this.socket.on('show-answer-history', (answerData) => {
+      console.log('Received answer history from server:', answerData);
       if (this.callbacks.onShowAnswerHistory) this.callbacks.onShowAnswerHistory(answerData);
     });
 
-    // Boost-related events
-    this.socket.on("fifty-fifty-options", (options) => {
+    this.socket.on('fifty-fifty-options', (options) => {
       if (this.callbacks.onFiftyFiftyOptions) this.callbacks.onFiftyFiftyOptions(options);
     });
 
-    this.socket.on("boost-activated", (data) => {
+    this.socket.on('boost-activated', (data) => {
       if (this.callbacks.onBoostActivated) this.callbacks.onBoostActivated(data);
     });
 
-    this.socket.on("boost-error", (error) => {
+    this.socket.on('boost-error', (error) => {
       if (this.callbacks.onBoostError) this.callbacks.onBoostError(error);
     });
 
-    // Result events
-    this.socket.on("answer-result", (result) => {
+    this.socket.on('answer-result', (result) => {
       if (this.callbacks.onAnswerResult) this.callbacks.onAnswerResult(result);
     });
 
-    // Error events
-    this.socket.on("game-error", (error) => {
+    this.socket.on('game-error', (error) => {
       if (this.callbacks.onGameError) this.callbacks.onGameError(error);
     });
 
-    // Quiz finished event
-    this.socket.on("quiz:finished", (data) => {
+    this.socket.on('join-error', (error) => {
+      if (this.callbacks.onGameError) this.callbacks.onGameError(error);
+    });
+
+    this.socket.on('quiz:finished', (data) => {
       if (this.callbacks.onQuizFinished) this.callbacks.onQuizFinished(data);
     });
 
-    // Max players updated event
-    this.socket.on("max-players-updated", (data) => {
+    this.socket.on('max-players-updated', (data) => {
       if (this.callbacks.onMaxPlayersUpdated) this.callbacks.onMaxPlayersUpdated(data);
     });
+
+    this.socket.on('game-joined', () => {
+      console.log('Game joined successfully');
+      if (this.callbacks.onGameJoined) this.callbacks.onGameJoined();
+    });
+  }
+
+  // Add callback for game-joined
+  on(event, callback) {
+    if (event === 'game-joined') {
+      this.callbacks.onGameJoined = callback;
+    } else if (this.callbacks.hasOwnProperty(event)) {
+      this.callbacks[event] = callback;
+    } else if (this.socket) {
+      this.socket.on(event, callback);
+    }
+  }
+
+  off(event, callback) {
+    if (event === 'game-joined') {
+      this.callbacks.onGameJoined = null;
+    } else if (this.callbacks.hasOwnProperty(event)) {
+      this.callbacks[event] = null;
+    } else if (this.socket) {
+      this.socket.off(event, callback);
+    }
+  }
+
+  disconnect() {
+    if (this.socket) {
+      this.socket.disconnect();
+      this.socket = null;
+    }
+  }
+
+  getSocket() {
+    if (!this.socket) this.connect();
+    return this.socket;
   }
 
   // Host methods
@@ -164,48 +206,7 @@ class SocketService {
     console.log("Requesting answer history for:", { pin, questionIndex });
     this.socket.emit("request-answer-history", { pin, questionIndex });
   }
-
-  // Register callback functions for events
-  on(event, callback) {
-    if (this.callbacks.hasOwnProperty(event)) {
-      this.callbacks[event] = callback;
-      return;
-    }
-    
-    // If it's not in our callbacks map, register directly with socket.io
-    if (this.socket) {
-      this.socket.on(event, callback);
-    }
-  }
-
-  // Add the off method to unregister event listeners
-  off(event, callback) {
-    if (this.callbacks.hasOwnProperty(event)) {
-      this.callbacks[event] = null;
-      return;
-    }
-    
-    // If it's not in our callbacks map, unregister directly with socket.io
-    if (this.socket) {
-      this.socket.off(event, callback);
-    }
-  }
-
-  // Clean up when disconnecting
-  disconnect() {
-    if (this.socket) {
-      this.socket.disconnect();
-      this.socket = null;
-    }
-  }
-
-  // Access the underlying socket directly when needed
-  getSocket() {
-    if (!this.socket) this.connect();
-    return this.socket;
-  }
 }
 
-// Create a singleton instance
 const socketService = new SocketService();
 export default socketService;
