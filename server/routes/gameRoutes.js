@@ -81,6 +81,17 @@ router.get('/pin/:pin', async (req, res) => {
   }
 });
 
+router.get('/poll/:pin', async (req, res) => {
+  try {
+    const game = await Game.findOne({ pin: req.params.pin }).populate('quiz');
+    if (!game) return res.status(404).json({ error: 'Game not found' });
+    res.json({ players: game.players, isActive: game.isActive, currentQuestionIndex: game.currentQuestionIndex });
+  } catch (error) {
+    console.error('Poll game error:', error);
+    res.status(500).json({ error: 'Failed to poll game' });
+  }
+});
+
 // Other routes unchanged
 router.get('/:id', async (req, res) => {
   try {

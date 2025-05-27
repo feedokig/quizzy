@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useLocation, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
+import axios from 'axios';
 import gameService from '../../services/gameService';
 import socketService from '../../services/socketService';
 import { useAuth } from '../../contexts/AuthContext';
@@ -27,40 +28,29 @@ const HostGame = () => {
   const [answerHistory, setAnswerHistory] = useState([]);
   const [allPlayersAnswered, setAllPlayersAnswered] = useState(false);
 
- useEffect(() => {
-    const initGame = async () => {
-      try {
-        setPlayers([]);
-        setLoading(true);
+useEffect(() => {
+  const initGame = async () => {
+    try {
+      setPlayers([]);
+      setLoading(true);
+      if (!user || !user.id) throw new Error(t('hostGame.error.notAuthenticated'));
+      let gameData = game;
+      if (!gameData) {
+        gameData = await gameService.getGame(gameId);
+        console.log('Loaded game data:', gameData);
+        if (!gameData || !gameData.pin) throw new Error(t('hostGame.error.invalidGameData'));
+        setGame(gameData);
+      }
 
-        if (!user || !user.id) {
-          throw new Error(t('hostGame.error.notAuthenticated'));
-        }
-
-        let gameData = game;
-
-        if (!gameData) {
-          gameData = await gameService.getGame(gameId);
-          console.log('Loaded game data:', gameData);
-
-          if (!gameData || !gameData.pin) {
-            throw new Error(t('hostGame.error.invalidGameData'));
-          }
-          if (!gameData.quiz || !gameData.quiz.questions) {
-            console.error('Quiz or questions missing:', gameData);
-            throw new Error(t('hostGame.error.quizMissing'));
-          }
-          setGame(gameData);
-        }
-
-        const socket = socketService.connect();
-
-        socketService.on('updatePlayers', (updatedPlayers) => {
-          console.log('Players updated from server:', updatedPlayers);
-          if (Array.isArray(updatedPlayers)) {
-            setPlayers(updatedPlayers);
-          }
-        });
+      const socket = socketService.connect();
+      socketService.on('updatePlayers', (updatedPlayers) => {
+        console.log('Players updated from server:', updatedPlayers);
+        if (Array.isArray(updatedPlayers)) setPlayers(updatedPlayers);
+      });
+      socketService.on('onPlayerJoined', ({ players }) => {
+        console.log('Players list updated:', players);
+        setPlayers(players);
+      });
 
         socketService.on('onPlayerJoined', ({ players }) => {
           console.log('Players list updated:', players);
@@ -71,6 +61,8 @@ const HostGame = () => {
           console.log('Player left:', playerId);
           setPlayers((prev) => prev.filter((p) => p.id !== playerId));
         });
+
+        
 
         socketService.on(
           'onPlayerAnswered',
@@ -166,6 +158,22 @@ const HostGame = () => {
           setError(error.message || t('hostGame.error.generic'));
         });
 
+        socketService.on('connect_error', () => {
+        console.warn('Socket.IO connection failed, using polling fallback');
+        const pollPlayers = async () => {
+          try {
+            const updatedGame = await gameService.getGame(gameId);
+            if (Array.isArray(updatedGame.players)) {
+              setPlayers(updatedGame.players);
+            }
+          } catch (err) {
+            console.error('Polling error:', err);
+          }
+        };
+        const interval = setInterval(pollPlayers, 5000);
+        return () => clearInterval(interval);
+      });
+
         socketService.hostJoin(gameData.pin, gameData._id, user.id); // Use user.id
 
         setLoading(false);
@@ -198,6 +206,21 @@ const HostGame = () => {
       }
     }
   }, [players, currentQuestion, gameState]);
+
+  useEffect(() => {
+  if (gameState === 'waiting') {
+    const pollGame = async () => {
+      try {
+        const response = await axios.get(`${process.env.REACT_APP_API_URL}/api/games/poll/${game.pin}`);
+        setPlayers(response.data.players || []);
+      } catch (err) {
+        console.error('Polling error:', err);
+      }
+    };
+    const interval = setInterval(pollGame, 5000);
+    return () => clearInterval(interval);
+  }
+}, [gameState, game]);
 
   const handleMaxPlayersChange = (e) => {
     const newMaxPlayers = parseInt(e.target.value, 10);

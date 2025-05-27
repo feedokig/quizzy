@@ -1,4 +1,4 @@
-// services/socketService.js
+// client/src/services/socketService.js
 import io from "socket.io-client";
 
 class SocketService {
@@ -24,17 +24,17 @@ class SocketService {
   }
 
   connect() {
-    if (this.socket) {
+    if (this.socket && this.socket.connected) {
       return this.socket;
     }
 
     this.socket = io(process.env.REACT_APP_API_URL || "http://localhost:5000", {
-      transports: ["polling"],
+      transports: ["websocket", "polling"],
       withCredentials: true,
       reconnection: true,
-      reconnectionAttempts: 10,
-      reconnectionDelay: 1000,
-      reconnectionDelayMax: 5000,
+      reconnectionAttempts: 3,
+      reconnectionDelay: 2000,
+      timeout: 20000,
     });
 
     this.socket.on("connect", () => {
@@ -45,8 +45,8 @@ class SocketService {
       console.error("Socket.IO connection error:", error.message);
     });
 
-    this.socket.on("reconnect_attempt", (attempt) => {
-      console.log("Reconnection attempt:", attempt);
+    this.socket.on("error", (error) => {
+      console.error("Socket.IO error:", error);
     });
 
     this.setupListeners();
