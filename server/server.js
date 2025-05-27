@@ -6,9 +6,7 @@ const http = require('http');
 const socketIo = require('socket.io');
 const path = require('path');
 const dotenv = require('dotenv');
-const Game = require('./models/Game');
 
-// Import routes
 const authRoutes = require('./routes/auth');
 const quizRoutes = require('./routes/quiz');
 const gameRoutes = require('./routes/gameRoutes');
@@ -23,13 +21,12 @@ const io = socketIo(server, {
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
     credentials: true,
   },
-  transports: ['polling'], // Force polling on server
-  allowEIO3: true, // Support Engine.IO v3 for compatibility
-  pingTimeout: 20000,
+  transports: ['polling'],
+  allowEIO3: true,
+  pingTimeout: 30000,
   pingInterval: 25000,
 });
 
-// Log Socket.IO connections
 io.on('connection', (socket) => {
   console.log('Socket.IO client connected:', socket.id);
   socket.on('disconnect', () => {
@@ -37,18 +34,14 @@ io.on('connection', (socket) => {
   });
 });
 
-// Configure CORS
-app.use(
-  cors({
-    origin: process.env.CLIENT_URL || 'https://quizzy-sandy-six.vercel.app',
-    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-    credentials: true,
-    allowedHeaders: ['Content-Type', 'Authorization', 'x-auth-token'],
-  })
-);
+app.use(cors({
+  origin: process.env.CLIENT_URL || 'https://quizzy-sandy-six.vercel.app',
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  credentials: true,
+  allowedHeaders: ['Content-Type', 'Authorization', 'x-auth-token'],
+}));
 
 app.options('*', cors());
-
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 
@@ -60,14 +53,8 @@ app.use('/api/auth', authRoutes);
 app.use('/api/quiz', quizRoutes);
 app.use('/api/games', gameRoutes);
 
-app.get('/api/test', (req, res) => {
-  res.json({ message: 'API is working' });
-});
-
-// Socket.IO handling
 require('./socket/socket')(io);
 
-// MongoDB connection
 mongoose
   .connect(process.env.MONGODB_URI, {
     useNewUrlParser: true,
@@ -83,7 +70,6 @@ mongoose
     process.exit(1);
   });
 
-// Production setup
 if (process.env.NODE_ENV === 'production') {
   app.use(express.static(path.join(__dirname, '../client/build')));
   app.get('*', (req, res) => {

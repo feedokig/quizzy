@@ -48,27 +48,25 @@ const Dashboard = () => {
   };
 
   const handleHostGame = async (quizId) => {
-    try {
-      setAlert(null);
-      console.log('Starting game for quiz:', quizId);
-      const game = await gameService.createGame(quizId);
-      console.log('Game created:', game);
+  try {
+    setAlert(null);
+    console.log('Creating game for quiz:', quizId);
+    const game = await gameService.createGame(quizId);
+    console.log('Game created successfully:', { id: game._id, pin: game.pin });
 
-      if (!game || !game._id) {
-        throw new Error(t('dashboard.invalidGameData'));
-      }
-
-      navigate(`/host/${game._id}`, {
-        state: { game },
-      });
-    } catch (error) {
-      console.error('Failed to host game:', error);
-      setAlert({
-        type: 'error',
-        message: error.message || t('dashboard.failedToCreateGame'),
-      });
+    if (!game || !game._id || !game.pin) {
+      throw new Error(t('dashboard.invalidGameData'));
     }
-  };
+
+    navigate(`/host/${game._id}`, { state: { game } });
+  } catch (error) {
+    console.error('Failed to host game:', error.message);
+    setAlert({
+      type: 'error',
+      message: error.message || t('dashboard.failedToCreateGame'),
+    });
+  }
+};
 
   if (loading) return <Spinner />;
 

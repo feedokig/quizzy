@@ -8,20 +8,22 @@ module.exports = (io) => {
   const joinedSockets = new Set();
 
   io.on("connection", (socket) => {
-    socket.on("host-join", async ({ pin, gameId }) => {
+    socket.on("host-join", async ({ pin, gameId, hostId }) => {
       try {
         const game = await Game.findById(gameId).populate("quiz");
-        console.log("Game loaded:", game);
+        console.log("Host joining game:", { pin, gameId, hostId });
 
-        if (game) {
-          socket.join(pin);
-          // Reset players for new session
-          game.players = [];
-          await game.save();
-          socket.emit("update-players", []);
+        if (!game || game.pin !== pin) {
+          socket.emit("game-error", { message: "Invalid game or PIN" });
+          return;
         }
+
+        socket.join(pin);
+        socket.emit("update-players", game.players || []);
+        console.log("Host joined game:", pin);
       } catch (error) {
-        console.error("Host join error:", error);
+        console.error("Host join error:", error.message);
+        socket.emit("game-error", { message: "Failed to join game" });
       }
     });
 
@@ -66,24 +68,24 @@ module.exports = (io) => {
       try {
         console.log(`Updating max players for game ${pin} to ${maxPlayers}`);
         const game = await Game.findOne({ pin });
-        
+
         if (!game) {
           socket.emit("game-error", { message: "Game not found" });
           return;
         }
-        
+
         // Update the max players
         game.maxPlayers = maxPlayers;
         await game.save();
-        
+
         // Update activeGames map if exists
         if (activeGames.has(pin)) {
           activeGames.get(pin).maxPlayers = maxPlayers;
         }
-        
+
         // Broadcast to all players in the game
         io.to(pin).emit("max-players-updated", { maxPlayers });
-        
+
         console.log(`Max players updated for game ${pin} to ${maxPlayers}`);
       } catch (error) {
         console.error("Update max players error:", error);
@@ -105,7 +107,7 @@ module.exports = (io) => {
           socket.emit("join-error", { message: "Game not found" });
           return;
         }
-    
+
         // Check if game is at max capacity
         if (game.maxPlayers && game.players.length >= game.maxPlayers) {
           socket.emit("join-error", { message: "Game is full" });
@@ -614,18 +616,3 @@ module.exports = (io) => {
     });
   });
 };
-
-function calculatePoints(correct, timeSpent) {
-  if (!correct) return 0;
-  const maxPoints = 1000;
-  const timeLimit = 20;
-  return Math.round(maxPoints * (1 - timeSpent / timeLimit));
-}
-
-function getFiftyFiftyOptions(question) {
-  const correctAnswer = question.options.find((opt) => opt.correct);
-  const wrongAnswers = question.options.filter((opt) => !opt.correct);
-  const randomWrongAnswer =
-    wrongAnswers[Math.floor(Math.random() * wrongAnswers.length)];
-  return [correctAnswer, randomWrongAnswer].sort(() => Math.random() - 0.5);
-}
