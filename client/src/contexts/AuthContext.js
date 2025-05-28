@@ -1,9 +1,7 @@
 // client/src/contexts/AuthContext.js
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
 import api from '../services/api';
 import { setAuthToken, removeAuthToken } from '../services/authToken';
-import { jwtDecode } from 'jwt-decode';
 
 const AuthContext = createContext();
 
@@ -16,25 +14,15 @@ export function AuthProvider({ children }) {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const navigate = useNavigate();
 
+  // Load user on initial render if token exists
   useEffect(() => {
     const loadUser = async () => {
+      // Проверяем токен в localStorage
       const token = localStorage.getItem('token');
       if (token) {
+        setAuthToken(token);
         try {
-          // Check token expiration
-          const decoded = jwtDecode(token);
-          if (decoded.exp * 1000 < Date.now()) {
-            console.log('Token expired');
-            removeAuthToken();
-            setUser(null);
-            setIsAuthenticated(false);
-            navigate('/login');
-            return;
-          }
-
-          setAuthToken(token);
           console.log('Attempting to load user with token');
           const res = await api.get('/api/auth/me');
           console.log('User loaded successfully:', res.data);
@@ -45,7 +33,6 @@ export function AuthProvider({ children }) {
           removeAuthToken();
           setUser(null);
           setIsAuthenticated(false);
-          navigate('/login');
         }
       } else {
         console.log('No token found in localStorage');
@@ -54,12 +41,14 @@ export function AuthProvider({ children }) {
     };
 
     loadUser();
-  }, [navigate]);
+  }, []);
 
+  // Register user
   const register = async (userData) => {
     try {
       console.log('Registering user:', { ...userData, password: '[HIDDEN]' });
       const res = await api.post('/api/auth/register', userData);
+      
       if (res.data && res.data.token) {
         localStorage.setItem('token', res.data.token);
         setAuthToken(res.data.token);
@@ -78,13 +67,16 @@ export function AuthProvider({ children }) {
     }
   };
 
+  // Login user
   const login = async (userData) => {
     try {
       console.log('Login attempt:', { email: userData.email, password: '[HIDDEN]' });
+      
       const res = await api.post('/api/auth/login', {
         email: userData.email,
         password: userData.password,
       });
+      
       if (res.data && res.data.token) {
         localStorage.setItem('token', res.data.token);
         setAuthToken(res.data.token);
@@ -103,10 +95,14 @@ export function AuthProvider({ children }) {
     }
   };
 
+  // Update password
   const updatePassword = async (currentPassword, newPassword) => {
     try {
       console.log('Updating password');
-      const res = await api.post('/api/auth/update-password', { currentPassword, newPassword });
+      const res = await api.post(
+        '/api/auth/update-password',
+        { currentPassword, newPassword }
+      );
       console.log('Password update response:', res.data);
       return res.data;
     } catch (err) {
@@ -115,12 +111,12 @@ export function AuthProvider({ children }) {
     }
   };
 
+  // Logout user
   const logout = () => {
     console.log('Logging out user');
     removeAuthToken();
     setUser(null);
     setIsAuthenticated(false);
-    navigate('/login');
   };
 
   const value = {
@@ -131,8 +127,12 @@ export function AuthProvider({ children }) {
     register,
     login,
     updatePassword,
-    logout,
+    logout
   };
 
-  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+  return (
+    <AuthContext.Provider value={value}>
+      {children}
+    </AuthContext.Provider>
+  );
 }
