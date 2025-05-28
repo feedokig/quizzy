@@ -93,101 +93,59 @@ module.exports = (io) => {
       }
     });
 
-    socket.on("player-join", async ({ pin, nickname }) => {
+socket.on("player-join", async ({ pin, nickname }) => {
       try {
-        // Check if this socket has already joined
         const socketKey = `${socket.id}:${pin}`;
         if (joinedSockets.has(socketKey)) {
           console.log(`Socket ${socket.id} already joined game ${pin}`);
           return;
         }
 
-        const game = await Game.findOne({ pin }).populate("quiz");
+        console.log(`Player ${nickname} attempting to join game with PIN: ${pin}`);
+        const game = await Game.findOne({ pin, isActive: true }).populate("quiz");
         if (!game) {
-          socket.emit("join-error", { message: "Game not found" });
+          console.log("Game not found for PIN:", pin);
+          socket.emit("join-error", { message: "Game not found or inactive" });
           return;
         }
 
-        // Check if game is at max capacity
         if (game.maxPlayers && game.players.length >= game.maxPlayers) {
+          console.log("Game is full for PIN:", pin);
           socket.emit("join-error", { message: "Game is full" });
           return;
         }
 
-        // Check if a player with this nickname already exists
-        const existingPlayerIndex = game.players.findIndex(
-          (p) => p.nickname === nickname
-        );
-
+        const existingPlayerIndex = game.players.findIndex((p) => p.nickname === nickname);
+        let player;
         if (existingPlayerIndex !== -1) {
-          // Update existing player's socketId
           game.players[existingPlayerIndex].socketId = socket.id;
           game.players[existingPlayerIndex].id = socket.id;
-
-          // Mark mongoose array as modified
-          game.markModified("players");
-          await game.save();
-
-          // Join the room
-          socket.join(pin);
-
-          // Update activeGames Map if it exists
-          if (activeGames.has(pin)) {
-            const existingPlayer = game.players[existingPlayerIndex];
-            activeGames.get(pin).players.set(socket.id, existingPlayer);
-          }
-
-          // Mark this socket as joined
-          joinedSockets.add(socketKey);
-
-          // Send existing score to player
-          socket.emit("player-rejoined", {
-            score: game.players[existingPlayerIndex].score || 0,
-          });
-
-          console.log(
-            `Player ${nickname} reconnected to game ${pin} with score ${
-              game.players[existingPlayerIndex].score || 0
-            }`
-          );
+          player = game.players[existingPlayerIndex];
         } else {
-          // Create new player
-          const player = {
-            id: socket.id,
-            socketId: socket.id,
-            nickname: nickname,
-            score: 0,
-          };
-
-          // Add player to game
+          player = { id: socket.id, socketId: socket.id, nickname, score: 0 };
           game.players.push(player);
-          game.markModified("players");
-          await game.save();
-
-          // Join socket to room
-          socket.join(pin);
-
-          // Update activeGames Map
-          if (!activeGames.has(pin)) {
-            activeGames.set(pin, {
-              gameId: game._id,
-              players: new Map(),
-              maxPlayers: game.maxPlayers || 10,
-              correctAnswersCount: {},
-            });
-          }
-          activeGames.get(pin).players.set(socket.id, player);
-
-          // Mark this socket as joined
-          joinedSockets.add(socketKey);
-
-          console.log(`Player ${nickname} joined game ${pin}`);
         }
 
-        // Emit player joined event in any case
+        game.markModified("players");
+        await game.save();
+
+        socket.join(pin);
+        if (!activeGames.has(pin)) {
+          activeGames.set(pin, {
+            gameId: game._id,
+            players: new Map(),
+            maxPlayers: game.maxPlayers || 10,
+            correctAnswersCount: {},
+          });
+        }
+        activeGames.get(pin).players.set(socket.id, player);
+        joinedSockets.add(socketKey);
+
+        socket.emit("game-joined", { score: player.score || 0 });
         io.to(pin).emit("player-joined", { players: game.players });
+        console.log(`Player ${nickname} joined game ${pin}`);
       } catch (error) {
-        console.error("Join error:", error);
+        console.error("Player join error:", error.message, error.stack);
         socket.emit("join-error", { message: "Failed to join game" });
       }
     });

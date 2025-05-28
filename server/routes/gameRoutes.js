@@ -21,6 +21,11 @@ const generatePin = async () => {
 
 router.post('/create', protect, async (req, res) => {
   try {
+    // Clean up old games (older than 1 hour)
+    await Game.deleteMany({
+      isActive: true,
+      createdAt: { $lt: new Date(Date.now() - 60 * 60 * 1000) },
+    });
     const { quizId } = req.body;
     const hostId = req.user.id;
     console.log('Creating game with quizId:', quizId, 'hostId:', hostId);
@@ -38,7 +43,7 @@ router.post('/create', protect, async (req, res) => {
       quiz: quizId,
       host: hostId,
       pin,
-      isActive: true, // Changed to true
+      isActive: true,
       isCompleted: false,
       createdAt: new Date(),
     });
@@ -57,7 +62,7 @@ router.get('/pin/:pin', async (req, res) => {
     console.log('Fetching game with PIN:', req.params.pin);
     const game = await Game.findOne({
       pin: req.params.pin,
-      isCompleted: false,
+      isActive: true, // Changed to isActive: true
     }).populate('quiz');
 
     if (!game) {
@@ -75,7 +80,7 @@ router.get('/pin/:pin', async (req, res) => {
 
 router.get('/poll/:pin', async (req, res) => {
   try {
-    const game = await Game.findOne({ pin: req.params.pin }).populate('quiz');
+    const game = await Game.findOne({ pin: req.params.pin, isActive: true }).populate('quiz');
     if (!game) return res.status(404).json({ error: 'Game not found' });
     res.json({ players: game.players, isActive: game.isActive, currentQuestionIndex: game.currentQuestionIndex });
   } catch (error) {

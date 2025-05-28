@@ -29,11 +29,16 @@ const gameSchema = new mongoose.Schema({
   },
   pin: {
     type: String,
-    required: true
+    required: true,
+    unique: true // Ensure PIN uniqueness
   },
   isActive: {
     type: Boolean,
-    default: false
+    default: true // Changed to true
+  },
+  isCompleted: {
+    type: Boolean,
+    default: false // Added
   },
   players: {
     type: [playerSchema],
