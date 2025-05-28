@@ -13,7 +13,7 @@ const HostGame = () => {
   const { gameId } = useParams();
   const location = useLocation();
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const [game, setGame] = useState(location.state?.game || null);
   const [loading, setLoading] = useState(!location.state?.game);
   const [error, setError] = useState('');
@@ -31,9 +31,12 @@ const HostGame = () => {
 useEffect(() => {
   const initGame = async () => {
     try {
-      setPlayers([]);
-      setLoading(true);
+      if (authLoading) return;
       if (!user || !user.id) throw new Error(t('hostGame.error.notAuthenticated'));
+      console.log('Initializing game with gameId:', gameId);
+        setLoading(true);
+        setPlayers([]);
+
       let gameData = game;
       if (!gameData) {
         gameData = await gameService.getGame(gameId);
