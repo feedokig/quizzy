@@ -10,8 +10,6 @@ const Game = require('../models/Game');
 // @access  Private
 router.post('/', auth, gameController.createGame);
 
-
-
 // @route   POST /api/game/join
 // @desc    Присоединение к игре
 // @access  Public

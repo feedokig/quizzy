@@ -12,38 +12,49 @@ const generatePin = () => {
 exports.createGame = async (req, res) => {
   try {
     const { quizId } = req.body;
-    
+    console.log('Creating game with quizId:', quizId, 'hostId:', req.user.id);
     const quiz = await Quiz.findById(quizId);
-    
     if (!quiz) {
+      console.log('Quiz not found for ID:', quizId);
       return res.status(404).json({ message: 'Quiz not found' });
     }
-    
-    // Генерируем уникальный PIN-код
     let pin = generatePin();
     let existingGame = await Game.findOne({ pin, isActive: true });
-    
-    // Если PIN уже используется, генерируем новый
     while (existingGame) {
       pin = generatePin();
       existingGame = await Game.findOne({ pin, isActive: true });
     }
-    
-    // Создаем новую игру
     const game = new Game({
       quiz: quizId,
       host: req.user.id,
       pin,
       isActive: true,
-      startedAt: null,
-      endedAt: null
+      isCompleted: false,
+      createdAt: new Date(),
     });
-    
     await game.save();
-    
-    res.status(201).json(game);
+    console.log('Game created:', { id: game._id, pin: game.pin, quiz: quizId });
+    const populatedGame = await Game.findById(game._id).populate('quiz');
+    res.status(201).json(populatedGame);
   } catch (error) {
     console.error('Create game error:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+};
+
+exports.getGameByPin = async (req, res) => {
+  try {
+    const pin = req.params.pin.trim();
+    console.log('Fetching game with PIN:', pin);
+    const game = await Game.findOne({ pin }).populate('quiz');
+    if (!game) {
+      console.log('No game found for PIN:', pin);
+      return res.status(404).json({ message: 'Game not found' });
+    }
+    console.log('Game found:', { id: game._id, pin: game.pin, isActive: game.isActive });
+    res.json(game);
+  } catch (error) {
+    console.error('Get game by pin error:', error.message, error.stack);
     res.status(500).json({ message: 'Server error' });
   }
 };

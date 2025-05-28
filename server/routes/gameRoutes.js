@@ -38,7 +38,7 @@ router.post('/create', protect, async (req, res) => {
       quiz: quizId,
       host: hostId,
       pin,
-      isActive: false,
+      isActive: true, // Changed to true
       isCompleted: false,
       createdAt: new Date(),
     });
