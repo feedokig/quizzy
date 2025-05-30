@@ -1,4 +1,4 @@
-**# Quizzy 🎯
+# Quizzy 🎯
 
 **Quizzy** is a real-time, multiplayer quiz platform inspired by Kahoot, built using the **MERN stack** (MongoDB, Express, React, Node.js) and **Socket.IO**. It allows users to create and host live quizzes with interactive gameplay features like power-ups, scoring systems and real-time updates.
 
@@ -120,4 +120,4 @@ Pull requests and issues are welcome! Feel free to fork the repo and suggest new
 
 Made with ❤️ by [feedokig](https://github.com/feedokig) & [holerrrr](https://github.com/holerrrr)
 
-**
+
