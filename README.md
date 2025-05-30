@@ -1,6 +1,6 @@
-# Quizzy 🎯
+**# Quizzy 🎯
 
-**Quizzy** is a real-time, multiplayer quiz platform inspired by Kahoot, built using the **MERN stack** (MongoDB, Express, React, Node.js) and **Socket.IO**. It allows users to create and host live quizzes with interactive gameplay features like power-ups, scoring systems, and real-time updates.
+**Quizzy** is a real-time, multiplayer quiz platform inspired by Kahoot, built using the **MERN stack** (MongoDB, Express, React, Node.js) and **Socket.IO**. It allows users to create and host live quizzes with interactive gameplay features like power-ups, scoring systems and real-time updates.
 
 ---
 
@@ -8,7 +8,7 @@
 
 ### 🧑‍💻 For Hosts:
 - Create and manage quizzes with multiple questions and answers
-- Enable boosts (50/50, double points, time freeze, etc.)
+- Enable boosts (50/50)
 - Generate game PINs for players to join
 - See live player list and remove players
 - Start game and control question flow in real time
@@ -21,12 +21,7 @@
 
 ### 🧠 Quiz Features:
 - Multiple-choice questions
-- Boosts like:
-  - **50/50**: Eliminates two incorrect answers
-  - **Double Points**: Doubles score for a question
-  - **Time Freeze**: Pauses timer temporarily
-  - **Nutrition Bonus**: Rewards for streaks
-- Wheel of Fortune mechanic (optional)
+- **50/50** Boosts
 - End screen with score and ranking
 
 ---
@@ -123,11 +118,6 @@ Pull requests and issues are welcome! Feel free to fork the repo and suggest new
 
 ---
 
-## 📄 License
-
-MIT License
-
----
-
 Made with ❤️ by [feedokig](https://github.com/feedokig) & [holerrrr](https://github.com/holerrrr)
 
+**
