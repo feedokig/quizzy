@@ -4,6 +4,14 @@
 
 ---
 
+## 🌐 Live Demo
+
+- **Frontend**: [https://quizzy-client-bktl.onrender.com](https://quizzy-client-bktl.onrender.com)
+- **Backend API**: [https://quizzy-backend-1cq8.onrender.com](https://quizzy-backend-1cq8.onrender.com)
+- **GitHub Repository**: [Quizzy GitHub](https://github.com/feedokig/quizzy)
+
+---
+
 ## 🚀 Features
 
 ### 🧑‍💻 For Hosts:
@@ -28,9 +36,9 @@
 
 ## 🛠 Tech Stack
 
-| Frontend            | Backend            | Realtime        | Database   |
-|---------------------|--------------------|------------------|-------------|
-| React + Tailwind    | Node.js + Express  | Socket.IO         | MongoDB     |
+| Frontend            | Backend            | Realtime        | Database   | Deployment   |
+|---------------------|--------------------|------------------|-------------|-------------|
+| React + Tailwind    | Node.js + Express  | Socket.IO         | MongoDB     | Render     |
 
 ---
 
